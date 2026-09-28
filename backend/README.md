@@ -6,6 +6,8 @@ Flask + PostgreSQL backend.
   clean architecture layers) and how to add a feature.
 - [`docs/data-model.md`](docs/data-model.md) and [`docs/erd.svg`](docs/erd.svg): the Phase 1 (MVP)
   data model and entity-relationship diagram.
+- [`docs/proposal-review.md`](docs/proposal-review.md): what the product proposal asks for, how the
+  backend maps onto it, and the open questions.
 
 ## Setup
 
