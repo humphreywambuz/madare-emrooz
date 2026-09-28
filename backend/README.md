@@ -1,7 +1,11 @@
 # madare-emrooz backend
 
-Flask + PostgreSQL backend. The Phase 1 (MVP) data model is documented in
-[`docs/data-model.md`](docs/data-model.md).
+Flask + PostgreSQL backend.
+
+- [`docs/architecture.md`](docs/architecture.md): how the code is organised (modular monolith with
+  clean architecture layers) and how to add a feature.
+- [`docs/data-model.md`](docs/data-model.md) and [`docs/erd.svg`](docs/erd.svg): the Phase 1 (MVP)
+  data model and entity-relationship diagram.
 
 ## Setup
 
@@ -26,9 +30,10 @@ pytest
 
 ## Changing the schema
 
-Edit the models in `app/models/`, then:
+Edit the models in `app/modules/<module>/infrastructure/models.py`, then:
 
 ```bash
 flask db migrate -m "describe the change"
 flask db upgrade
+python scripts/generate_erd.py   # refresh docs/erd.svg
 ```

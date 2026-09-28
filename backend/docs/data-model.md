@@ -1,171 +1,38 @@
 # Phase 1 (MVP) data model
 
 This is the database schema for Phase 1 of the maternal & child health platform. It is based on
-`دیتامدل فاز 1 .docx` in this folder. The code lives in `backend/app/models/` (Flask-SQLAlchemy,
+`دیتامدل فاز 1 .docx` in this folder. The code lives in `backend/app/modules/` (Flask-SQLAlchemy,
 PostgreSQL), and the schema is created by the Alembic migration in `backend/migrations/`.
 
 ## Mapping from the specification
 
-| # | Section of the spec | Table(s) | Model |
+| # | Section of the spec | Table(s) | Module (`app/modules/…`) |
 |---|---|---|---|
-| 1 | User auth & role | `users`, `otp_codes`, `user_sessions` | `User`, `OtpCode`, `UserSession` |
-| 2 | Base demographic profile | `profiles` | `Profile` |
-| 3 | Medical & midwifery history | `medical_histories` | `MedicalHistory` |
-| 4 | Pregnancy path | `pregnancies` | `Pregnancy` |
-| 5 | Daily monitoring & symptoms | `daily_logs` | `DailyLog` |
-| 6 | Medical documents | `medical_documents` | `MedicalDocument` |
-| 7 | Medical staff panel | `risk_tag_assignments`, `staff_notes`, `care_approvals` | `RiskTagAssignment`, `StaffNote`, `CareApproval` |
-| 8 | Audit log | `audit_logs` | `AuditLog` |
-| 9 | Fitness & daily sport path (option B) | `fitness_profiles` (+ `profiles`) | `FitnessProfile` |
-| 10 | Rehabilitation health profile (option C) | `rehab_profiles` | `RehabProfile` |
-| 11 | Rehabilitation access control | `rehab_profiles.specialist_visit_*` + `care_approvals` | `RehabProfile.is_advanced_locked` |
+| 1 | User auth & role | `users`, `otp_codes`, `user_sessions` | `identity` |
+| 2 | Base demographic profile | `profiles` | `profiles` |
+| 3 | Medical & midwifery history | `medical_histories` | `profiles` |
+| 4 | Pregnancy path | `pregnancies` | `pregnancy` |
+| 5 | Daily monitoring & symptoms | `daily_logs` | `monitoring` |
+| 6 | Medical documents | `medical_documents` | `documents` |
+| 7 | Medical staff panel | `risk_tag_assignments`, `staff_notes`, `care_approvals` | `care_team` |
+| 8 | Audit log | `audit_logs` | `audit` |
+| 9 | Fitness & daily sport path (option B) | `fitness_profiles` (+ `profiles`) | `fitness` |
+| 10 | Rehabilitation health profile (option C) | `rehab_profiles` | `rehabilitation` |
+| 11 | Rehabilitation access control | `rehab_profiles.specialist_visit_*` + `care_approvals` | `rehabilitation` (`domain/policies.py`) |
+
+Each module keeps its ORM models in `infrastructure/models.py` (classes end in `Model`, e.g.
+`PregnancyModel`) and its enums and business rules in `domain/`. See
+[architecture.md](architecture.md).
 
 ## Entity-relationship diagram
 
-```mermaid
-erDiagram
-    users ||--o{ otp_codes : "by mobile (no FK)"
-    users ||--o{ user_sessions : has
-    users ||--o| profiles : has
-    users ||--o| medical_histories : has
-    users ||--o| fitness_profiles : has
-    users ||--o| rehab_profiles : has
-    users ||--o{ pregnancies : has
-    users ||--o{ daily_logs : "patient / recorded_by"
-    pregnancies |o--o{ daily_logs : groups
-    users ||--o{ medical_documents : "patient / uploaded_by"
-    pregnancies |o--o{ medical_documents : groups
-    medical_documents |o--o| rehab_profiles : "orthopedic imaging"
-    users ||--o{ risk_tag_assignments : "patient / added_by"
-    users ||--o{ staff_notes : "patient / author"
-    users ||--o{ care_approvals : "patient / approved_by"
-    users ||--o{ audit_logs : "actor / patient (no FK)"
+![Phase 1 entity-relationship diagram](erd.svg)
 
-    users {
-        uuid id PK
-        varchar mobile UK "E.164"
-        varchar role "user|doctor|midwife|admin"
-        bool is_active
-        timestamptz mobile_verified_at
-        timestamptz last_login_at
-    }
-    otp_codes {
-        uuid id PK
-        varchar mobile
-        varchar code_hash
-        timestamptz expires_at
-        smallint attempts
-        timestamptz consumed_at
-    }
-    user_sessions {
-        uuid id PK
-        uuid user_id FK
-        varchar refresh_token_hash UK
-        inet ip_address
-        timestamptz expires_at
-        timestamptz revoked_at
-    }
-    profiles {
-        uuid user_id PK,FK
-        varchar first_name
-        varchar last_name
-        varchar national_code UK
-        date birth_date
-        numeric height_cm
-        numeric initial_weight_kg
-        varchar mother_blood_type
-        varchar father_blood_type
-        varchar reproductive_status
-        varchar join_goal
-    }
-    medical_histories {
-        uuid user_id PK,FK
-        smallint previous_children_count
-        smallint miscarriage_count
-        bool has_diabetes
-        bool has_hypertension
-        text underlying_conditions "and ~20 more, see model"
-    }
-    pregnancies {
-        uuid id PK
-        uuid user_id FK
-        date lmp_date
-        smallint avg_cycle_length_days
-        varchar conception_type
-        date estimated_due_date
-        varchar care_provider_type
-        varchar status "one active per user"
-    }
-    daily_logs {
-        uuid id PK
-        uuid patient_id FK
-        uuid pregnancy_id FK
-        uuid recorded_by_id FK
-        timestamptz recorded_at
-        bool has_spotting_or_bleeding
-        smallint systolic_bp
-        smallint diastolic_bp
-        smallint blood_glucose_mg_dl
-        numeric weight_kg
-        bool is_red_alert "generated"
-    }
-    medical_documents {
-        uuid id PK
-        uuid patient_id FK
-        uuid uploaded_by_id FK
-        uuid pregnancy_id FK
-        varchar document_type
-        varchar storage_key UK
-        timestamptz performed_at
-        numeric fundal_height_cm
-        smallint fetal_heart_rate_bpm
-    }
-    risk_tag_assignments {
-        uuid id PK
-        uuid patient_id FK
-        varchar tag "unique per patient"
-        uuid added_by_id FK
-    }
-    staff_notes {
-        uuid id PK
-        uuid patient_id FK
-        uuid author_id FK
-        text body
-    }
-    care_approvals {
-        uuid id PK
-        uuid patient_id FK
-        uuid approved_by_id FK
-        varchar scope "pregnancy_plan|rehabilitation_plan"
-        timestamptz approved_at
-        timestamptz revoked_at
-    }
-    fitness_profiles {
-        uuid user_id PK,FK
-        varchar goal
-        text goal_note
-    }
-    rehab_profiles {
-        uuid user_id PK,FK
-        varchar subcategory
-        smallint pain_level "1..10"
-        bool had_related_surgery
-        varchar related_surgery_name
-        bool uses_pain_medication
-        uuid imaging_document_id FK
-        bool specialist_visit_completed
-    }
-    audit_logs {
-        bigint id PK
-        uuid actor_id
-        uuid patient_id
-        varchar event_type
-        varchar resource_type
-        varchar resource_id
-        inet ip_address
-        jsonb details
-        timestamptz created_at
-    }
+The diagram is generated from the models. After changing a model, regenerate it from the `backend`
+directory:
+
+```bash
+python scripts/generate_erd.py
 ```
 
 ## Tables
@@ -184,9 +51,9 @@ erDiagram
 - Name, national code (10 digits, unique), height, initial weight, both parents' blood types,
   reproductive status (`trying_to_conceive` / `pregnant` / `postpartum`) and join goal
   (`pregnancy` / `fitness` / `rehabilitation`).
-- **Age is stored as `birth_date`.** A stored age would go out of date; `Profile.age` calculates it.
+- **Age is stored as `birth_date`.** A stored age would go out of date; `profiles.domain.rules.age_on` calculates it.
 - The father's blood type is kept for Rh incompatibility checks. See
-  `Profile.rh_incompatibility_risk`.
+  `profiles.domain.rules.rh_incompatibility_risk`.
 
 ### 3. `medical_histories` (one per user)
 - Covers every item in the spec: children and miscarriage counts, diabetes, hypertension,
@@ -200,10 +67,10 @@ erDiagram
 - A user can have several pregnancies over time, but a partial unique index allows **only one
   with `status = 'active'`**.
 - `estimated_due_date` is calculated from LMP with Naegele's rule, adjusted for cycle length
-  (`Pregnancy.calculate_due_date`). It is stored so a clinician can correct it, for example from
+  (`pregnancy.domain.entities.calculate_due_date`). It is stored so a clinician can correct it, for example from
   an ultrasound.
 - **The gestational week is not stored** because it changes every day.
-  `Pregnancy.gestational_week()` calculates it from the due date.
+  The `Pregnancy` domain entity calculates it from the due date (`gestational_week()`).
 
 ### 5. `daily_logs`
 - Each entry records who entered it (`recorded_by_id`): the patient (e.g. spotting or bleeding)
@@ -252,7 +119,7 @@ erDiagram
 
 ### 11. Rehabilitation access control
 - `rehab_profiles.specialist_visit_completed` / `specialist_visit_at` record the visit.
-- `RehabProfile.is_advanced_locked` stays **true** until the visit has happened **and** there is
+- `rehabilitation.domain.policies.is_advanced_locked` stays **true** until the visit has happened **and** there is
   an active `care_approvals` row with scope `rehabilitation_plan`. Because it is calculated rather
   than stored, the lock cannot disagree with the approval history.
 
@@ -262,7 +129,7 @@ erDiagram
 - Every table has `created_at`, and mutable tables also have `updated_at` (`timestamptz`).
 - Enums are stored as `VARCHAR` with a named CHECK constraint (`ck_<table>_<column>_valid`)
   instead of native PostgreSQL `ENUM` types, so adding a value is a simple migration. The values
-  are defined in `app/models/enums.py`.
+  are defined in each module's `domain/enums.py`.
 - All constraints follow a naming convention (`app/extensions.py`), so Alembic migrations stay
   predictable.
 - Patient-owned data uses `ON DELETE CASCADE` to its patient. References to staff members

@@ -1,0 +1,556 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2483 1606" width="2483" height="1606" role="img" aria-label="Entity-relationship diagram of the Phase 1 tables. Every table references users; daily_logs and medical_documents also reference pregnancies, and rehab_profiles references medical_documents.">
+<style>
+:root, svg {
+  --canvas: #f2f5f4; --surface: #ffffff; --ink: #16201e; --muted: #5a6865; --edge: #52615e;
+  --accent: #0b6b63;
+  --identity: #3e5c9a; --identity-soft: #e3e9f5; --profile: #7a4e9a; --profile-soft: #eee6f4;
+  --pregnancy: #a8405a; --pregnancy-soft: #f7e3e8; --staff: #2f7d5b; --staff-soft: #dff0e7;
+  --paths: #9a6216; --paths-soft: #f5eadb; --audit: #5f6b6e; --audit-soft: #e6eaeb;
+}
+@media (prefers-color-scheme: dark) {
+  :root, svg {
+    --canvas: #0f1513; --surface: #18211f; --ink: #e2eae7; --muted: #97a5a1; --edge: #8fa09c;
+    --accent: #4fc3b4;
+    --identity: #8ea8e0; --identity-soft: #21304b; --profile: #c3a0de; --profile-soft: #33283f;
+    --pregnancy: #eb8ea4; --pregnancy-soft: #43232c; --staff: #7fd0a8; --staff-soft: #1c3a2d;
+    --paths: #e0ad66; --paths-soft: #3d2f1a; --audit: #a9b5b8; --audit-soft: #2a3133;
+  }
+}
+text { font-family: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, "DejaVu Sans Mono", monospace; }
+.bg { fill: var(--canvas); }
+.title { font: 600 20px "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--ink); }
+.subtitle { font-size: 12px; fill: var(--muted); }
+.legend { font-size: 11.5px; fill: var(--ink); }
+.g-identity  { --gsoft: var(--identity-soft);  --gstrong: var(--identity); }
+.g-profile   { --gsoft: var(--profile-soft);   --gstrong: var(--profile); }
+.g-pregnancy { --gsoft: var(--pregnancy-soft); --gstrong: var(--pregnancy); }
+.g-staff     { --gsoft: var(--staff-soft);     --gstrong: var(--staff); }
+.g-paths     { --gsoft: var(--paths-soft);     --gstrong: var(--paths); }
+.g-audit     { --gsoft: var(--audit-soft);     --gstrong: var(--audit); }
+.sw { fill: var(--gsoft); stroke: var(--gstrong); stroke-width: 1.5; }
+.box { fill: var(--surface); stroke: var(--gstrong); stroke-width: 1.2; }
+.head { fill: var(--gsoft); }
+.rule { stroke: var(--gstrong); stroke-width: 1; opacity: .5; }
+.tname { font-size: 12.5px; font-weight: 600; fill: var(--ink); }
+.tsec { font-size: 11px; font-weight: 500; fill: var(--gstrong); }
+.cname { font-size: 11px; fill: var(--ink); }
+.ctype { font-size: 11px; fill: var(--muted); }
+.ctype.fk { fill: var(--accent); font-weight: 500; }
+.badge { font-size: 9px; font-weight: 600; letter-spacing: .04em; fill: var(--muted); }
+.b-pk, .b-fk { fill: var(--accent); }
+.stamp { font-size: 10.5px; fill: var(--muted); }
+.rel { fill: none; stroke: var(--edge); stroke-width: 1.3; }
+.rel.logical { stroke-dasharray: 5 4; }
+.mark { fill: none; stroke: var(--edge); stroke-width: 1.3; }
+.dot { fill: var(--surface); stroke: var(--edge); stroke-width: 1.3; }
+.rlabel { font-size: 10.5px; fill: var(--muted); paint-order: stroke; stroke: var(--canvas); stroke-width: 4px; stroke-linejoin: round; }
+</style>
+<rect class="bg" width="2483" height="1606"/>
+<text class="title" x="40" y="38">Madare Emrooz · Phase 1 (MVP) data model</text>
+<text class="subtitle" x="40" y="58">Generated from backend/app/modules by scripts/generate_erd.py. § = section of the spec · ? = nullable · → = foreign key</text>
+<g class="g-identity"><rect class="sw" x="40" y="74" width="12" height="12" rx="2"/><text class="legend" x="58" y="84">Identity &amp; access</text></g>
+<g class="g-profile"><rect class="sw" x="201" y="74" width="12" height="12" rx="2"/><text class="legend" x="219" y="84">Profile &amp; history</text></g>
+<g class="g-pregnancy"><rect class="sw" x="362" y="74" width="12" height="12" rx="2"/><text class="legend" x="380" y="84">Pregnancy care</text></g>
+<g class="g-staff"><rect class="sw" x="502" y="74" width="12" height="12" rx="2"/><text class="legend" x="520" y="84">Staff panel</text></g>
+<g class="g-paths"><rect class="sw" x="621" y="74" width="12" height="12" rx="2"/><text class="legend" x="639" y="84">Fitness &amp; rehab paths</text></g>
+<g class="g-audit"><rect class="sw" x="810" y="74" width="12" height="12" rx="2"/><text class="legend" x="828" y="84">Audit</text></g>
+<line class="mark" x1="903" x2="939" y1="80" y2="80"/><line class="mark" x1="929" x2="929" y1="74" y2="86"/><line class="mark" x1="934" x2="934" y1="74" y2="86"/>
+<text class="legend" x="947" y="84">exactly one</text>
+<line class="mark" x1="1048" x2="1084" y1="80" y2="80"/><line class="mark" x1="1079" x2="1079" y1="74" y2="86"/><circle class="dot" cx="1068" cy="80" r="3.5"/>
+<text class="legend" x="1092" y="84">zero or one</text>
+<line class="mark" x1="1193" x2="1229" y1="80" y2="80"/><path class="mark" d="M1229,73 L1219,80 L1229,87"/><circle class="dot" cx="1213" cy="80" r="3.5"/>
+<text class="legend" x="1237" y="84">zero or many</text>
+<line class="rel logical" x1="1345" x2="1381" y1="80" y2="80"/>
+<text class="legend" x="1389" y="84">no FK</text>
+<path class="rel logical" d="M446,694 V768 H1102 V822"/>
+<text class="rlabel" x="454" y="728">mobile · no FK</text>
+<path class="rel" d="M753,694 V754 H1158 V822"/>
+<path class="mark" d="M746,694 L753,706 L760,694 M753,694 V706"/><circle class="dot" cx="753" cy="712" r="3.5"/>
+<line class="mark" x1="1152" x2="1164" y1="815" y2="815"/><line class="mark" x1="1152" x2="1164" y1="810" y2="810"/>
+<text class="rlabel" x="765" y="728">user_id</text>
+<path class="rel" d="M1090,694 V740 H1214 V822"/>
+<line class="mark" x1="1084" x2="1096" y1="701" y2="701"/><circle class="dot" cx="1090" cy="709" r="3.5"/>
+<line class="mark" x1="1208" x2="1220" y1="815" y2="815"/><line class="mark" x1="1208" x2="1220" y1="810" y2="810"/>
+<text class="rlabel" x="1102" y="728">user_id</text>
+<path class="rel" d="M1440,694 V740 H1270 V822"/>
+<line class="mark" x1="1434" x2="1446" y1="701" y2="701"/><circle class="dot" cx="1440" cy="709" r="3.5"/>
+<line class="mark" x1="1264" x2="1276" y1="815" y2="815"/><line class="mark" x1="1264" x2="1276" y1="810" y2="810"/>
+<text class="rlabel" x="1452" y="728">user_id</text>
+<path class="rel" d="M1750,694 V754 H1326 V822"/>
+<line class="mark" x1="1744" x2="1756" y1="701" y2="701"/><circle class="dot" cx="1750" cy="709" r="3.5"/>
+<line class="mark" x1="1320" x2="1332" y1="815" y2="815"/><line class="mark" x1="1320" x2="1332" y1="810" y2="810"/>
+<text class="rlabel" x="1762" y="728">user_id</text>
+<path class="rel logical" d="M2030,694 V768 H1382 V822"/>
+<text class="rlabel" x="2038" y="728">actor_id, patient_id · no FK</text>
+<path class="rel" d="M212,1128 V1054 H1102 V1000"/>
+<path class="mark" d="M205,1128 L212,1116 L219,1128 M212,1128 V1116"/><circle class="dot" cx="212" cy="1110" r="3.5"/>
+<line class="mark" x1="1096" x2="1108" y1="1007" y2="1007"/><line class="mark" x1="1096" x2="1108" y1="1012" y2="1012"/>
+<text class="rlabel" x="224" y="1098">patient_id</text>
+<path class="rel" d="M595,1128 V1068 H1149 V1000"/>
+<path class="mark" d="M588,1128 L595,1116 L602,1128 M595,1128 V1116"/><circle class="dot" cx="595" cy="1110" r="3.5"/>
+<line class="mark" x1="1143" x2="1155" y1="1007" y2="1007"/><line class="mark" x1="1143" x2="1155" y1="1012" y2="1012"/>
+<text class="rlabel" x="607" y="1098">user_id</text>
+<path class="rel" d="M951,1128 V1082 H1195 V1000"/>
+<path class="mark" d="M944,1128 L951,1116 L958,1128 M951,1128 V1116"/><circle class="dot" cx="951" cy="1110" r="3.5"/>
+<line class="mark" x1="1189" x2="1201" y1="1007" y2="1007"/><line class="mark" x1="1189" x2="1201" y1="1012" y2="1012"/>
+<text class="rlabel" x="963" y="1098">patient_id</text>
+<path class="rel" d="M1373,1128 V1082 H1242 V1000"/>
+<line class="mark" x1="1367" x2="1379" y1="1121" y2="1121"/><circle class="dot" cx="1373" cy="1113" r="3.5"/>
+<line class="mark" x1="1236" x2="1248" y1="1007" y2="1007"/><line class="mark" x1="1236" x2="1248" y1="1012" y2="1012"/>
+<text class="rlabel" x="1385" y="1098">user_id</text>
+<path class="rel" d="M1762,1128 V1068 H1289 V1000"/>
+<path class="mark" d="M1755,1128 L1762,1116 L1769,1128 M1762,1128 V1116"/><circle class="dot" cx="1762" cy="1110" r="3.5"/>
+<line class="mark" x1="1283" x2="1295" y1="1007" y2="1007"/><line class="mark" x1="1283" x2="1295" y1="1012" y2="1012"/>
+<text class="rlabel" x="1774" y="1098">patient_id</text>
+<path class="rel" d="M2039,1128 V1054 H1335 V1000"/>
+<path class="mark" d="M2032,1128 L2039,1116 L2046,1128 M2039,1128 V1116"/><circle class="dot" cx="2039" cy="1110" r="3.5"/>
+<line class="mark" x1="1329" x2="1341" y1="1007" y2="1007"/><line class="mark" x1="1329" x2="1341" y1="1012" y2="1012"/>
+<text class="rlabel" x="2051" y="1098">patient_id</text>
+<path class="rel" d="M2323,1128 V1040 H1382 V1000"/>
+<path class="mark" d="M2316,1128 L2323,1116 L2330,1128 M2323,1128 V1116"/><circle class="dot" cx="2323" cy="1110" r="3.5"/>
+<line class="mark" x1="1376" x2="1388" y1="1007" y2="1007"/><line class="mark" x1="1376" x2="1388" y1="1012" y2="1012"/>
+<text class="rlabel" x="2335" y="1098">patient_id</text>
+<path class="rel" d="M385,1210 H417 V1170 H449"/>
+<path class="mark" d="M385,1203 L397,1210 L385,1217"/><circle class="dot" cx="403" cy="1210" r="3.5"/>
+<line class="mark" x1="442" x2="442" y1="1164" y2="1176"/><circle class="dot" cx="434" cy="1170" r="3.5"/>
+<path class="rel" d="M805,1230 H773 V1170 H741"/>
+<path class="mark" d="M805,1223 L793,1230 L805,1237"/><circle class="dot" cx="787" cy="1230" r="3.5"/>
+<line class="mark" x1="748" x2="748" y1="1164" y2="1176"/><circle class="dot" cx="756" cy="1170" r="3.5"/>
+<path class="rel" d="M1161,1190 H1129 V1170 H1097"/>
+<path class="mark" d="M1161,1183 L1149,1190 L1161,1197"/><circle class="dot" cx="1143" cy="1190" r="3.5"/>
+<line class="mark" x1="1104" x2="1104" y1="1164" y2="1176"/><circle class="dot" cx="1112" cy="1170" r="3.5"/>
+<g class="tbl g-audit" id="t-audit_logs">
+<rect class="box" x="1914" y="456" width="233" height="238" rx="6"/>
+<path class="head" d="M1914,488 V462 a6,6 0 0 1 6,-6 H2141 a6,6 0 0 1 6,6 V488 Z"/>
+<line class="rule" x1="1914" x2="2147" y1="488" y2="488"/>
+<text class="tname" x="1926" y="477">audit_logs</text>
+<text class="tsec" x="2135" y="477" text-anchor="end">§8</text>
+<text class="badge b-pk" x="1926" y="502">PK</text>
+<text class="cname" x="1952" y="502">id</text>
+<text class="ctype" x="2135" y="502" text-anchor="end">int8</text>
+<text class="cname" x="1952" y="522">actor_id</text>
+<text class="ctype" x="2135" y="522" text-anchor="end">uuid?</text>
+<text class="cname" x="1952" y="542">patient_id</text>
+<text class="ctype" x="2135" y="542" text-anchor="end">uuid?</text>
+<text class="cname" x="1952" y="562">event_type</text>
+<text class="ctype" x="2135" y="562" text-anchor="end">enum</text>
+<text class="cname" x="1952" y="582">resource_type</text>
+<text class="ctype" x="2135" y="582" text-anchor="end">varchar(50)?</text>
+<text class="cname" x="1952" y="602">resource_id</text>
+<text class="ctype" x="2135" y="602" text-anchor="end">varchar(64)?</text>
+<text class="cname" x="1952" y="622">ip_address</text>
+<text class="ctype" x="2135" y="622" text-anchor="end">inet?</text>
+<text class="cname" x="1952" y="642">user_agent</text>
+<text class="ctype" x="2135" y="642" text-anchor="end">text?</text>
+<text class="cname" x="1952" y="662">details</text>
+<text class="ctype" x="2135" y="662" text-anchor="end">jsonb?</text>
+<text class="stamp" x="1952" y="682">+ created_at</text>
+</g>
+<g class="tbl g-identity" id="t-otp_codes">
+<rect class="box" x="336" y="516" width="220" height="178" rx="6"/>
+<path class="head" d="M336,548 V522 a6,6 0 0 1 6,-6 H550 a6,6 0 0 1 6,6 V548 Z"/>
+<line class="rule" x1="336" x2="556" y1="548" y2="548"/>
+<text class="tname" x="348" y="537">otp_codes</text>
+<text class="tsec" x="544" y="537" text-anchor="end">§1</text>
+<text class="badge b-pk" x="348" y="562">PK</text>
+<text class="cname" x="374" y="562">id</text>
+<text class="ctype" x="544" y="562" text-anchor="end">uuid</text>
+<text class="cname" x="374" y="582">mobile</text>
+<text class="ctype" x="544" y="582" text-anchor="end">varchar(16)</text>
+<text class="cname" x="374" y="602">code_hash</text>
+<text class="ctype" x="544" y="602" text-anchor="end">varchar(255)</text>
+<text class="cname" x="374" y="622">expires_at</text>
+<text class="ctype" x="544" y="622" text-anchor="end">timestamptz</text>
+<text class="cname" x="374" y="642">attempts</text>
+<text class="ctype" x="544" y="642" text-anchor="end">int2</text>
+<text class="cname" x="374" y="662">consumed_at</text>
+<text class="ctype" x="544" y="662" text-anchor="end">timestamptz?</text>
+<text class="stamp" x="374" y="682">+ created_at</text>
+</g>
+<g class="tbl g-identity" id="t-users">
+<rect class="box" x="1072" y="822" width="340" height="178" rx="6"/>
+<path class="head" d="M1072,854 V828 a6,6 0 0 1 6,-6 H1406 a6,6 0 0 1 6,6 V854 Z"/>
+<line class="rule" x1="1072" x2="1412" y1="854" y2="854"/>
+<text class="tname" x="1084" y="843">users</text>
+<text class="tsec" x="1400" y="843" text-anchor="end">§1</text>
+<text class="badge b-pk" x="1084" y="868">PK</text>
+<text class="cname" x="1110" y="868">id</text>
+<text class="ctype" x="1400" y="868" text-anchor="end">uuid</text>
+<text class="badge b-uq" x="1084" y="888">UQ</text>
+<text class="cname" x="1110" y="888">mobile</text>
+<text class="ctype" x="1400" y="888" text-anchor="end">varchar(16)</text>
+<text class="cname" x="1110" y="908">role</text>
+<text class="ctype" x="1400" y="908" text-anchor="end">enum</text>
+<text class="cname" x="1110" y="928">is_active</text>
+<text class="ctype" x="1400" y="928" text-anchor="end">bool</text>
+<text class="cname" x="1110" y="948">mobile_verified_at</text>
+<text class="ctype" x="1400" y="948" text-anchor="end">timestamptz?</text>
+<text class="cname" x="1110" y="968">last_login_at</text>
+<text class="ctype" x="1400" y="968" text-anchor="end">timestamptz?</text>
+<text class="stamp" x="1110" y="988">+ created_at, updated_at</text>
+</g>
+<g class="tbl g-staff" id="t-care_approvals">
+<rect class="box" x="2203" y="1128" width="240" height="198" rx="6"/>
+<path class="head" d="M2203,1160 V1134 a6,6 0 0 1 6,-6 H2437 a6,6 0 0 1 6,6 V1160 Z"/>
+<line class="rule" x1="2203" x2="2443" y1="1160" y2="1160"/>
+<text class="tname" x="2215" y="1149">care_approvals</text>
+<text class="tsec" x="2431" y="1149" text-anchor="end">§7 §11</text>
+<text class="badge b-pk" x="2215" y="1174">PK</text>
+<text class="cname" x="2241" y="1174">id</text>
+<text class="ctype" x="2431" y="1174" text-anchor="end">uuid</text>
+<text class="badge b-fk" x="2215" y="1194">FK</text>
+<text class="cname" x="2241" y="1194">patient_id</text>
+<text class="ctype fk" x="2431" y="1194" text-anchor="end">→ users</text>
+<text class="badge b-fk" x="2215" y="1214">FK</text>
+<text class="cname" x="2241" y="1214">approved_by_id</text>
+<text class="ctype fk" x="2431" y="1214" text-anchor="end">→ users</text>
+<text class="badge b-fk" x="2215" y="1234">FK</text>
+<text class="cname" x="2241" y="1234">revoked_by_id</text>
+<text class="ctype fk" x="2431" y="1234" text-anchor="end">→ users?</text>
+<text class="cname" x="2241" y="1254">scope</text>
+<text class="ctype" x="2431" y="1254" text-anchor="end">enum</text>
+<text class="cname" x="2241" y="1274">approved_at</text>
+<text class="ctype" x="2431" y="1274" text-anchor="end">timestamptz</text>
+<text class="cname" x="2241" y="1294">revoked_at</text>
+<text class="ctype" x="2431" y="1294" text-anchor="end">timestamptz?</text>
+<text class="stamp" x="2241" y="1314">+ created_at</text>
+</g>
+<g class="tbl g-paths" id="t-fitness_profiles">
+<rect class="box" x="1650" y="576" width="200" height="118" rx="6"/>
+<path class="head" d="M1650,608 V582 a6,6 0 0 1 6,-6 H1844 a6,6 0 0 1 6,6 V608 Z"/>
+<line class="rule" x1="1650" x2="1850" y1="608" y2="608"/>
+<text class="tname" x="1662" y="597">fitness_profiles</text>
+<text class="tsec" x="1838" y="597" text-anchor="end">§9</text>
+<text class="badge b-pk" x="1662" y="622">PK</text>
+<text class="cname" x="1688" y="622">user_id</text>
+<text class="ctype fk" x="1838" y="622" text-anchor="end">→ users</text>
+<text class="cname" x="1688" y="642">goal</text>
+<text class="ctype" x="1838" y="642" text-anchor="end">enum</text>
+<text class="cname" x="1688" y="662">goal_note</text>
+<text class="ctype" x="1838" y="662" text-anchor="end">text?</text>
+<text class="stamp" x="1688" y="682">+ created_at, updated_at</text>
+</g>
+<g class="tbl g-profile" id="t-medical_histories">
+<rect class="box" x="1294" y="136" width="292" height="558" rx="6"/>
+<path class="head" d="M1294,168 V142 a6,6 0 0 1 6,-6 H1580 a6,6 0 0 1 6,6 V168 Z"/>
+<line class="rule" x1="1294" x2="1586" y1="168" y2="168"/>
+<text class="tname" x="1306" y="157">medical_histories</text>
+<text class="tsec" x="1574" y="157" text-anchor="end">§3</text>
+<text class="badge b-pk" x="1306" y="182">PK</text>
+<text class="cname" x="1332" y="182">user_id</text>
+<text class="ctype fk" x="1574" y="182" text-anchor="end">→ users</text>
+<text class="cname" x="1332" y="202">previous_children_count</text>
+<text class="ctype" x="1574" y="202" text-anchor="end">int2?</text>
+<text class="cname" x="1332" y="222">miscarriage_count</text>
+<text class="ctype" x="1574" y="222" text-anchor="end">int2?</text>
+<text class="cname" x="1332" y="242">has_diabetes</text>
+<text class="ctype" x="1574" y="242" text-anchor="end">bool?</text>
+<text class="cname" x="1332" y="262">has_hypertension</text>
+<text class="ctype" x="1574" y="262" text-anchor="end">bool?</text>
+<text class="cname" x="1332" y="282">has_nutrient_deficiency</text>
+<text class="ctype" x="1574" y="282" text-anchor="end">bool?</text>
+<text class="cname" x="1332" y="302">nutrient_deficiency_details</text>
+<text class="ctype" x="1574" y="302" text-anchor="end">text?</text>
+<text class="cname" x="1332" y="322">has_thyroid_disorder</text>
+<text class="ctype" x="1574" y="322" text-anchor="end">bool?</text>
+<text class="cname" x="1332" y="342">has_breast_cyst</text>
+<text class="ctype" x="1574" y="342" text-anchor="end">bool?</text>
+<text class="cname" x="1332" y="362">has_ovarian_cyst_pcos</text>
+<text class="ctype" x="1574" y="362" text-anchor="end">bool?</text>
+<text class="cname" x="1332" y="382">underlying_conditions</text>
+<text class="ctype" x="1574" y="382" text-anchor="end">text?</text>
+<text class="cname" x="1332" y="402">has_previous_surgery</text>
+<text class="ctype" x="1574" y="402" text-anchor="end">bool?</text>
+<text class="cname" x="1332" y="422">previous_surgery_details</text>
+<text class="ctype" x="1574" y="422" text-anchor="end">text?</text>
+<text class="cname" x="1332" y="442">has_anesthesia_history</text>
+<text class="ctype" x="1574" y="442" text-anchor="end">bool?</text>
+<text class="cname" x="1332" y="462">current_medications</text>
+<text class="ctype" x="1574" y="462" text-anchor="end">text?</text>
+<text class="cname" x="1332" y="482">has_dental_infection</text>
+<text class="ctype" x="1574" y="482" text-anchor="end">bool?</text>
+<text class="cname" x="1332" y="502">dental_notes</text>
+<text class="ctype" x="1574" y="502" text-anchor="end">text?</text>
+<text class="cname" x="1332" y="522">has_hiv</text>
+<text class="ctype" x="1574" y="522" text-anchor="end">bool?</text>
+<text class="cname" x="1332" y="542">has_hepatitis_b</text>
+<text class="ctype" x="1574" y="542" text-anchor="end">bool?</text>
+<text class="cname" x="1332" y="562">has_hepatitis_c</text>
+<text class="ctype" x="1574" y="562" text-anchor="end">bool?</text>
+<text class="cname" x="1332" y="582">other_infectious_diseases</text>
+<text class="ctype" x="1574" y="582" text-anchor="end">text?</text>
+<text class="cname" x="1332" y="602">spouse_has_diabetes</text>
+<text class="ctype" x="1574" y="602" text-anchor="end">bool?</text>
+<text class="cname" x="1332" y="622">spouse_has_varicocele</text>
+<text class="ctype" x="1574" y="622" text-anchor="end">bool?</text>
+<text class="cname" x="1332" y="642">spouse_has_genetic_disorder</text>
+<text class="ctype" x="1574" y="642" text-anchor="end">bool?</text>
+<text class="cname" x="1332" y="662">spouse_health_notes</text>
+<text class="ctype" x="1574" y="662" text-anchor="end">text?</text>
+<text class="stamp" x="1332" y="682">+ created_at, updated_at</text>
+</g>
+<g class="tbl g-pregnancy" id="t-pregnancies">
+<rect class="box" x="449" y="1128" width="292" height="258" rx="6"/>
+<path class="head" d="M449,1160 V1134 a6,6 0 0 1 6,-6 H735 a6,6 0 0 1 6,6 V1160 Z"/>
+<line class="rule" x1="449" x2="741" y1="1160" y2="1160"/>
+<text class="tname" x="461" y="1149">pregnancies</text>
+<text class="tsec" x="729" y="1149" text-anchor="end">§4</text>
+<text class="badge b-pk" x="461" y="1174">PK</text>
+<text class="cname" x="487" y="1174">id</text>
+<text class="ctype" x="729" y="1174" text-anchor="end">uuid</text>
+<text class="badge b-fk" x="461" y="1194">FK</text>
+<text class="cname" x="487" y="1194">user_id</text>
+<text class="ctype fk" x="729" y="1194" text-anchor="end">→ users</text>
+<text class="cname" x="487" y="1214">lmp_date</text>
+<text class="ctype" x="729" y="1214" text-anchor="end">date</text>
+<text class="cname" x="487" y="1234">avg_cycle_length_days</text>
+<text class="ctype" x="729" y="1234" text-anchor="end">int2</text>
+<text class="cname" x="487" y="1254">conception_type</text>
+<text class="ctype" x="729" y="1254" text-anchor="end">enum</text>
+<text class="cname" x="487" y="1274">estimated_due_date</text>
+<text class="ctype" x="729" y="1274" text-anchor="end">date</text>
+<text class="cname" x="487" y="1294">care_provider_type</text>
+<text class="ctype" x="729" y="1294" text-anchor="end">enum?</text>
+<text class="cname" x="487" y="1314">care_provider_name</text>
+<text class="ctype" x="729" y="1314" text-anchor="end">varchar(200)?</text>
+<text class="cname" x="487" y="1334">status</text>
+<text class="ctype" x="729" y="1334" text-anchor="end">enum</text>
+<text class="cname" x="487" y="1354">ended_on</text>
+<text class="ctype" x="729" y="1354" text-anchor="end">date?</text>
+<text class="stamp" x="487" y="1374">+ created_at, updated_at</text>
+</g>
+<g class="tbl g-profile" id="t-profiles">
+<rect class="box" x="950" y="416" width="279" height="278" rx="6"/>
+<path class="head" d="M950,448 V422 a6,6 0 0 1 6,-6 H1223 a6,6 0 0 1 6,6 V448 Z"/>
+<line class="rule" x1="950" x2="1229" y1="448" y2="448"/>
+<text class="tname" x="962" y="437">profiles</text>
+<text class="tsec" x="1217" y="437" text-anchor="end">§2</text>
+<text class="badge b-pk" x="962" y="462">PK</text>
+<text class="cname" x="988" y="462">user_id</text>
+<text class="ctype fk" x="1217" y="462" text-anchor="end">→ users</text>
+<text class="cname" x="988" y="482">first_name</text>
+<text class="ctype" x="1217" y="482" text-anchor="end">varchar(100)</text>
+<text class="cname" x="988" y="502">last_name</text>
+<text class="ctype" x="1217" y="502" text-anchor="end">varchar(100)</text>
+<text class="badge b-uq" x="962" y="522">UQ</text>
+<text class="cname" x="988" y="522">national_code</text>
+<text class="ctype" x="1217" y="522" text-anchor="end">varchar(10)?</text>
+<text class="cname" x="988" y="542">birth_date</text>
+<text class="ctype" x="1217" y="542" text-anchor="end">date?</text>
+<text class="cname" x="988" y="562">height_cm</text>
+<text class="ctype" x="1217" y="562" text-anchor="end">numeric(4,1)?</text>
+<text class="cname" x="988" y="582">initial_weight_kg</text>
+<text class="ctype" x="1217" y="582" text-anchor="end">numeric(5,2)?</text>
+<text class="cname" x="988" y="602">mother_blood_type</text>
+<text class="ctype" x="1217" y="602" text-anchor="end">enum?</text>
+<text class="cname" x="988" y="622">father_blood_type</text>
+<text class="ctype" x="1217" y="622" text-anchor="end">enum?</text>
+<text class="cname" x="988" y="642">reproductive_status</text>
+<text class="ctype" x="1217" y="642" text-anchor="end">enum?</text>
+<text class="cname" x="988" y="662">join_goal</text>
+<text class="ctype" x="1217" y="662" text-anchor="end">enum</text>
+<text class="stamp" x="988" y="682">+ created_at, updated_at</text>
+</g>
+<g class="tbl g-staff" id="t-risk_tag_assignments">
+<rect class="box" x="1649" y="1128" width="226" height="158" rx="6"/>
+<path class="head" d="M1649,1160 V1134 a6,6 0 0 1 6,-6 H1869 a6,6 0 0 1 6,6 V1160 Z"/>
+<line class="rule" x1="1649" x2="1875" y1="1160" y2="1160"/>
+<text class="tname" x="1661" y="1149">risk_tag_assignments</text>
+<text class="tsec" x="1863" y="1149" text-anchor="end">§7</text>
+<text class="badge b-pk" x="1661" y="1174">PK</text>
+<text class="cname" x="1687" y="1174">id</text>
+<text class="ctype" x="1863" y="1174" text-anchor="end">uuid</text>
+<text class="badge b-fk" x="1661" y="1194">FK</text>
+<text class="cname" x="1687" y="1194">patient_id</text>
+<text class="ctype fk" x="1863" y="1194" text-anchor="end">→ users</text>
+<text class="badge b-fk" x="1661" y="1214">FK</text>
+<text class="cname" x="1687" y="1214">added_by_id</text>
+<text class="ctype fk" x="1863" y="1214" text-anchor="end">→ users</text>
+<text class="cname" x="1687" y="1234">tag</text>
+<text class="ctype" x="1863" y="1234" text-anchor="end">enum</text>
+<text class="cname" x="1687" y="1254">note</text>
+<text class="ctype" x="1863" y="1254" text-anchor="end">varchar(255)?</text>
+<text class="stamp" x="1687" y="1274">+ created_at</text>
+</g>
+<g class="tbl g-staff" id="t-staff_notes">
+<rect class="box" x="1939" y="1128" width="200" height="138" rx="6"/>
+<path class="head" d="M1939,1160 V1134 a6,6 0 0 1 6,-6 H2133 a6,6 0 0 1 6,6 V1160 Z"/>
+<line class="rule" x1="1939" x2="2139" y1="1160" y2="1160"/>
+<text class="tname" x="1951" y="1149">staff_notes</text>
+<text class="tsec" x="2127" y="1149" text-anchor="end">§7</text>
+<text class="badge b-pk" x="1951" y="1174">PK</text>
+<text class="cname" x="1977" y="1174">id</text>
+<text class="ctype" x="2127" y="1174" text-anchor="end">uuid</text>
+<text class="badge b-fk" x="1951" y="1194">FK</text>
+<text class="cname" x="1977" y="1194">patient_id</text>
+<text class="ctype fk" x="2127" y="1194" text-anchor="end">→ users</text>
+<text class="badge b-fk" x="1951" y="1214">FK</text>
+<text class="cname" x="1977" y="1214">author_id</text>
+<text class="ctype fk" x="2127" y="1214" text-anchor="end">→ users</text>
+<text class="cname" x="1977" y="1234">body</text>
+<text class="ctype" x="2127" y="1234" text-anchor="end">text</text>
+<text class="stamp" x="1977" y="1254">+ created_at, updated_at</text>
+</g>
+<g class="tbl g-identity" id="t-user_sessions">
+<rect class="box" x="620" y="476" width="266" height="218" rx="6"/>
+<path class="head" d="M620,508 V482 a6,6 0 0 1 6,-6 H880 a6,6 0 0 1 6,6 V508 Z"/>
+<line class="rule" x1="620" x2="886" y1="508" y2="508"/>
+<text class="tname" x="632" y="497">user_sessions</text>
+<text class="tsec" x="874" y="497" text-anchor="end">§1</text>
+<text class="badge b-pk" x="632" y="522">PK</text>
+<text class="cname" x="658" y="522">id</text>
+<text class="ctype" x="874" y="522" text-anchor="end">uuid</text>
+<text class="badge b-fk" x="632" y="542">FK</text>
+<text class="cname" x="658" y="542">user_id</text>
+<text class="ctype fk" x="874" y="542" text-anchor="end">→ users</text>
+<text class="badge b-uq" x="632" y="562">UQ</text>
+<text class="cname" x="658" y="562">refresh_token_hash</text>
+<text class="ctype" x="874" y="562" text-anchor="end">varchar(255)</text>
+<text class="cname" x="658" y="582">ip_address</text>
+<text class="ctype" x="874" y="582" text-anchor="end">inet?</text>
+<text class="cname" x="658" y="602">user_agent</text>
+<text class="ctype" x="874" y="602" text-anchor="end">text?</text>
+<text class="cname" x="658" y="622">last_seen_at</text>
+<text class="ctype" x="874" y="622" text-anchor="end">timestamptz?</text>
+<text class="cname" x="658" y="642">expires_at</text>
+<text class="ctype" x="874" y="642" text-anchor="end">timestamptz</text>
+<text class="cname" x="658" y="662">revoked_at</text>
+<text class="ctype" x="874" y="662" text-anchor="end">timestamptz?</text>
+<text class="stamp" x="658" y="682">+ created_at</text>
+</g>
+<g class="tbl g-pregnancy" id="t-daily_logs">
+<rect class="box" x="40" y="1128" width="345" height="418" rx="6"/>
+<path class="head" d="M40,1160 V1134 a6,6 0 0 1 6,-6 H379 a6,6 0 0 1 6,6 V1160 Z"/>
+<line class="rule" x1="40" x2="385" y1="1160" y2="1160"/>
+<text class="tname" x="52" y="1149">daily_logs</text>
+<text class="tsec" x="373" y="1149" text-anchor="end">§5</text>
+<text class="badge b-pk" x="52" y="1174">PK</text>
+<text class="cname" x="78" y="1174">id</text>
+<text class="ctype" x="373" y="1174" text-anchor="end">uuid</text>
+<text class="badge b-fk" x="52" y="1194">FK</text>
+<text class="cname" x="78" y="1194">patient_id</text>
+<text class="ctype fk" x="373" y="1194" text-anchor="end">→ users</text>
+<text class="badge b-fk" x="52" y="1214">FK</text>
+<text class="cname" x="78" y="1214">pregnancy_id</text>
+<text class="ctype fk" x="373" y="1214" text-anchor="end">→ pregnancies?</text>
+<text class="badge b-fk" x="52" y="1234">FK</text>
+<text class="cname" x="78" y="1234">recorded_by_id</text>
+<text class="ctype fk" x="373" y="1234" text-anchor="end">→ users</text>
+<text class="cname" x="78" y="1254">recorded_at</text>
+<text class="ctype" x="373" y="1254" text-anchor="end">timestamptz</text>
+<text class="cname" x="78" y="1274">has_spotting_or_bleeding</text>
+<text class="ctype" x="373" y="1274" text-anchor="end">bool?</text>
+<text class="cname" x="78" y="1294">systolic_bp</text>
+<text class="ctype" x="373" y="1294" text-anchor="end">int2?</text>
+<text class="cname" x="78" y="1314">diastolic_bp</text>
+<text class="ctype" x="373" y="1314" text-anchor="end">int2?</text>
+<text class="cname" x="78" y="1334">blood_glucose_mg_dl</text>
+<text class="ctype" x="373" y="1334" text-anchor="end">int2?</text>
+<text class="cname" x="78" y="1354">weight_kg</text>
+<text class="ctype" x="373" y="1354" text-anchor="end">numeric(5,2)?</text>
+<text class="cname" x="78" y="1374">has_acid_reflux</text>
+<text class="ctype" x="373" y="1374" text-anchor="end">bool?</text>
+<text class="cname" x="78" y="1394">has_blurred_vision</text>
+<text class="ctype" x="373" y="1394" text-anchor="end">bool?</text>
+<text class="cname" x="78" y="1414">has_headache</text>
+<text class="ctype" x="373" y="1414" text-anchor="end">bool?</text>
+<text class="cname" x="78" y="1434">has_palpitations</text>
+<text class="ctype" x="373" y="1434" text-anchor="end">bool?</text>
+<text class="cname" x="78" y="1454">has_heartburn</text>
+<text class="ctype" x="373" y="1454" text-anchor="end">bool?</text>
+<text class="cname" x="78" y="1474">has_reduced_fetal_movement</text>
+<text class="ctype" x="373" y="1474" text-anchor="end">bool?</text>
+<text class="cname" x="78" y="1494">other_complaints</text>
+<text class="ctype" x="373" y="1494" text-anchor="end">text?</text>
+<text class="cname" x="78" y="1514">is_red_alert</text>
+<text class="ctype" x="373" y="1514" text-anchor="end">bool · generated</text>
+<text class="stamp" x="78" y="1534">+ created_at, updated_at</text>
+</g>
+<g class="tbl g-pregnancy" id="t-medical_documents">
+<rect class="box" x="805" y="1128" width="292" height="318" rx="6"/>
+<path class="head" d="M805,1160 V1134 a6,6 0 0 1 6,-6 H1091 a6,6 0 0 1 6,6 V1160 Z"/>
+<line class="rule" x1="805" x2="1097" y1="1160" y2="1160"/>
+<text class="tname" x="817" y="1149">medical_documents</text>
+<text class="tsec" x="1085" y="1149" text-anchor="end">§6</text>
+<text class="badge b-pk" x="817" y="1174">PK</text>
+<text class="cname" x="843" y="1174">id</text>
+<text class="ctype" x="1085" y="1174" text-anchor="end">uuid</text>
+<text class="badge b-fk" x="817" y="1194">FK</text>
+<text class="cname" x="843" y="1194">patient_id</text>
+<text class="ctype fk" x="1085" y="1194" text-anchor="end">→ users</text>
+<text class="badge b-fk" x="817" y="1214">FK</text>
+<text class="cname" x="843" y="1214">uploaded_by_id</text>
+<text class="ctype fk" x="1085" y="1214" text-anchor="end">→ users</text>
+<text class="badge b-fk" x="817" y="1234">FK</text>
+<text class="cname" x="843" y="1234">pregnancy_id</text>
+<text class="ctype fk" x="1085" y="1234" text-anchor="end">→ pregnancies?</text>
+<text class="cname" x="843" y="1254">document_type</text>
+<text class="ctype" x="1085" y="1254" text-anchor="end">enum</text>
+<text class="badge b-uq" x="817" y="1274">UQ</text>
+<text class="cname" x="843" y="1274">storage_key</text>
+<text class="ctype" x="1085" y="1274" text-anchor="end">varchar(512)</text>
+<text class="cname" x="843" y="1294">original_filename</text>
+<text class="ctype" x="1085" y="1294" text-anchor="end">varchar(255)</text>
+<text class="cname" x="843" y="1314">content_type</text>
+<text class="ctype" x="1085" y="1314" text-anchor="end">varchar(100)</text>
+<text class="cname" x="843" y="1334">file_size_bytes</text>
+<text class="ctype" x="1085" y="1334" text-anchor="end">int8</text>
+<text class="cname" x="843" y="1354">performed_at</text>
+<text class="ctype" x="1085" y="1354" text-anchor="end">timestamptz?</text>
+<text class="cname" x="843" y="1374">fundal_height_cm</text>
+<text class="ctype" x="1085" y="1374" text-anchor="end">numeric(4,1)?</text>
+<text class="cname" x="843" y="1394">fetal_heart_rate_bpm</text>
+<text class="ctype" x="1085" y="1394" text-anchor="end">int2?</text>
+<text class="cname" x="843" y="1414">notes</text>
+<text class="ctype" x="1085" y="1414" text-anchor="end">text?</text>
+<text class="stamp" x="843" y="1434">+ created_at, updated_at</text>
+</g>
+<g class="tbl g-paths" id="t-rehab_profiles">
+<rect class="box" x="1161" y="1128" width="424" height="438" rx="6"/>
+<path class="head" d="M1161,1160 V1134 a6,6 0 0 1 6,-6 H1579 a6,6 0 0 1 6,6 V1160 Z"/>
+<line class="rule" x1="1161" x2="1585" y1="1160" y2="1160"/>
+<text class="tname" x="1173" y="1149">rehab_profiles</text>
+<text class="tsec" x="1573" y="1149" text-anchor="end">§10 §11</text>
+<text class="badge b-pk" x="1173" y="1174">PK</text>
+<text class="cname" x="1199" y="1174">user_id</text>
+<text class="ctype fk" x="1573" y="1174" text-anchor="end">→ users</text>
+<text class="badge b-fk" x="1173" y="1194">FK</text>
+<text class="cname" x="1199" y="1194">imaging_document_id</text>
+<text class="ctype fk" x="1573" y="1194" text-anchor="end">→ medical_documents?</text>
+<text class="cname" x="1199" y="1214">subcategory</text>
+<text class="ctype" x="1573" y="1214" text-anchor="end">enum</text>
+<text class="cname" x="1199" y="1234">pain_level</text>
+<text class="ctype" x="1573" y="1234" text-anchor="end">int2</text>
+<text class="cname" x="1199" y="1254">had_related_surgery</text>
+<text class="ctype" x="1573" y="1254" text-anchor="end">bool</text>
+<text class="cname" x="1199" y="1274">related_surgery_name</text>
+<text class="ctype" x="1573" y="1274" text-anchor="end">varchar(255)?</text>
+<text class="cname" x="1199" y="1294">uses_pain_medication</text>
+<text class="ctype" x="1573" y="1294" text-anchor="end">bool</text>
+<text class="cname" x="1199" y="1314">injury_onset</text>
+<text class="ctype" x="1573" y="1314" text-anchor="end">enum?</text>
+<text class="cname" x="1199" y="1334">pain_type</text>
+<text class="ctype" x="1573" y="1334" text-anchor="end">enum?</text>
+<text class="cname" x="1199" y="1354">has_daily_movement_limitation</text>
+<text class="ctype" x="1573" y="1354" text-anchor="end">bool?</text>
+<text class="cname" x="1199" y="1374">time_since_delivery</text>
+<text class="ctype" x="1573" y="1374" text-anchor="end">enum?</text>
+<text class="cname" x="1199" y="1394">has_pelvic_warning_signs</text>
+<text class="ctype" x="1573" y="1394" text-anchor="end">bool?</text>
+<text class="cname" x="1199" y="1414">has_diastasis_recti_or_stitch_pain</text>
+<text class="ctype" x="1573" y="1414" text-anchor="end">bool?</text>
+<text class="cname" x="1199" y="1434">training_goal</text>
+<text class="ctype" x="1573" y="1434" text-anchor="end">enum?</text>
+<text class="cname" x="1199" y="1454">fitness_level</text>
+<text class="ctype" x="1573" y="1454" text-anchor="end">enum?</text>
+<text class="cname" x="1199" y="1474">has_recurrent_muscle_spasms</text>
+<text class="ctype" x="1573" y="1474" text-anchor="end">bool?</text>
+<text class="cname" x="1199" y="1494">referral_reason</text>
+<text class="ctype" x="1573" y="1494" text-anchor="end">enum?</text>
+<text class="cname" x="1199" y="1514">specialist_visit_completed</text>
+<text class="ctype" x="1573" y="1514" text-anchor="end">bool</text>
+<text class="cname" x="1199" y="1534">specialist_visit_at</text>
+<text class="ctype" x="1573" y="1534" text-anchor="end">timestamptz?</text>
+<text class="stamp" x="1199" y="1554">+ created_at, updated_at</text>
+</g>
+</svg>
