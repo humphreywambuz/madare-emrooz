@@ -136,7 +136,10 @@ turned into JSON by `shared/api/errors.py`:
 
 `shared/infrastructure/tokens.py` issues and verifies signed, expiring access tokens (`itsdangerous`,
 lifetime set by `ACCESS_TOKEN_TTL_SECONDS`). `login_required` and `roles_required("doctor", …)`
-in `shared/api/auth.py` protect routes and expose `current_user()`. The identity module will issue
+in `shared/api/auth.py` protect routes and expose `current_user()`. On every request `login_required` also
+checks that the account still exists and is active (a check registered by the identity module in
+`create_app`), so deactivating a user takes effect immediately rather than when the token expires.
+Responses serialise dates as ISO 8601 (`shared/api/json.py`). The identity module will issue
 tokens after OTP verification. That flow is the next piece to build.
 
 ## Testing by layer
