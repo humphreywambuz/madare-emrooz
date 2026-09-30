@@ -7,6 +7,7 @@ from app.shared.domain.errors import (
     DomainError,
     NotFoundError,
     PermissionDeniedError,
+    RateLimitedError,
     ValidationError,
 )
 
@@ -16,6 +17,7 @@ _STATUS = {
     ConflictError: 409,
     AuthenticationError: 401,
     PermissionDeniedError: 403,
+    RateLimitedError: 429,
 }
 
 
@@ -30,7 +32,10 @@ def register_error_handlers(app: Flask) -> None:
     @app.errorhandler(DomainError)
     def handle_domain_error(error: DomainError):
         body = {"error": {"code": error.code, "message": error.message, "details": error.details}}
-        return jsonify(body), _status_for(error)
+        headers = {}
+        if isinstance(error, RateLimitedError):
+            headers["Retry-After"] = str(error.retry_after_seconds)
+        return jsonify(body), _status_for(error), headers
 
     @app.errorhandler(PydanticValidationError)
     def handle_request_validation(error: PydanticValidationError):

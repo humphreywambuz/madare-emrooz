@@ -13,10 +13,11 @@ APP = Path(__file__).resolve().parents[1] / "app"
 LAYERS = ("domain", "application", "infrastructure", "api")
 
 FRAMEWORKS = ("flask", "flask_sqlalchemy", "flask_migrate", "sqlalchemy", "pydantic", "itsdangerous")
+# app.wiring assembles use cases from several modules; only the api layer may use it.
 FORBIDDEN_LIBS = {
-    "domain": FRAMEWORKS + ("app.extensions",),
-    "application": FRAMEWORKS + ("app.extensions",),
-    "infrastructure": ("flask", "pydantic"),
+    "domain": FRAMEWORKS + ("app.extensions", "app.wiring"),
+    "application": FRAMEWORKS + ("app.extensions", "app.wiring"),
+    "infrastructure": ("flask", "pydantic", "app.wiring"),
     "api": (),
 }
 FORBIDDEN_LAYERS = {

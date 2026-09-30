@@ -51,6 +51,7 @@ def make_user(session):
 @pytest.fixture()
 def client(app):
     """HTTP client for API tests. Requests commit, so tables are emptied afterwards."""
+    app.extensions.setdefault("sms_outbox", []).clear()
     yield app.test_client()
     _db.session.remove()
     tables = ", ".join(t.name for t in _db.metadata.sorted_tables)

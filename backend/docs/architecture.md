@@ -16,7 +16,8 @@ HTTP.
 ```text
 backend/
 ├── app/
-│   ├── __init__.py            # create_app(): composition root
+│   ├── __init__.py            # create_app(): registers extensions, modules, error handlers
+│   ├── wiring.py              # builds each use case with its concrete adapters
 │   ├── config.py
 │   ├── extensions.py          # db, migrate
 │   ├── shared/                # shared kernel, used by every module
@@ -90,6 +91,12 @@ links are only used inside a module.
 
 `shared/` never imports a feature module.
 
+**Wiring.** Use cases receive their adapters (repositories, SMS sender, audit trail, token issuer)
+through their constructor. `app/wiring.py` builds them for the current request. It's the one place
+allowed to combine infrastructure from several modules, for example identity's repositories with
+audit's trail. Module `api` layers import their service factory from there
+(`from app.wiring import auth_service`); `domain`, `application` and `infrastructure` may not.
+
 `tests/test_architecture.py` checks all of these rules on every test run, so a wrong import fails
 CI instead of slipping into review.
 
@@ -131,16 +138,46 @@ turned into JSON by `shared/api/errors.py`:
 | `ConflictError` | 409 |
 | `AuthenticationError` | 401 |
 | `PermissionDeniedError` | 403 |
+| `RateLimitedError` (with a `Retry-After` header) | 429 |
 
 ## Authentication
 
-`shared/infrastructure/tokens.py` issues and verifies signed, expiring access tokens (`itsdangerous`,
-lifetime set by `ACCESS_TOKEN_TTL_SECONDS`). `login_required` and `roles_required("doctor", …)`
-in `shared/api/auth.py` protect routes and expose `current_user()`. On every request `login_required` also
-checks that the account still exists and is active (a check registered by the identity module in
-`create_app`), so deactivating a user takes effect immediately rather than when the token expires.
-Responses serialise dates as ISO 8601 (`shared/api/json.py`). The identity module will issue
-tokens after OTP verification. That flow is the next piece to build.
+App users sign in with a one-time SMS code (identity module). Signing in with a new number creates
+the account, so there is no separate sign-up.
+
+| Step | Endpoint | Result |
+|---|---|---|
+| 1 | `POST /api/v1/auth/otp/request` `{mobile}` | 202; a 6-digit code is sent by SMS |
+| 2 | `POST /api/v1/auth/otp/verify` `{mobile, code}` | access token (15 min), refresh token (30 days), `is_new_user` |
+| 3 | `POST /api/v1/auth/token/refresh` `{refresh_token}` | new access and refresh tokens; the old refresh token stops working |
+| 4 | `POST /api/v1/auth/logout` `{refresh_token}` | 204; the session is revoked |
+| – | `GET /api/v1/me` | the signed-in account |
+
+Protections:
+
+- **Phone numbers** are accepted in any common format, including Persian digits, and stored as
+  E.164 (`+989121234567`).
+- **Codes** are stored only as an HMAC keyed with `SECRET_KEY`, expire after 2 minutes, work once,
+  and lock after 5 wrong tries. Requesting a new code replaces the old one.
+- **Sending limits:** one code per number per minute, 5 per number per hour and 20 per network per
+  hour. Past a limit the API returns 429 with `Retry-After`.
+- **The request-code response** is the same whether or not the number has an account.
+- **Failed attempts** are committed before the error is returned, so they always count.
+- **Audit log:** every successful and failed sign-in is written to `audit_logs`.
+- **Refresh tokens** are stored only as a SHA-256 hash and replaced on every use.
+
+`SMS_BACKEND=console` (the development default) writes the code to the server log instead of
+sending it. Production needs a real SMS provider behind the same `SmsSender` port.
+
+`shared/infrastructure/tokens.py` signs and verifies access tokens (`itsdangerous`, lifetime set by
+`ACCESS_TOKEN_TTL_SECONDS`). `login_required` and `roles_required("doctor", …)` in
+`shared/api/auth.py` protect routes and expose `current_user()`. On every request `login_required`
+also checks that the account still exists and is active (a check registered by the identity module
+in `create_app`), so deactivating a user takes effect immediately rather than when the token
+expires. Responses serialise dates as ISO 8601 (`shared/api/json.py`).
+
+Not built yet: password sign-in for staff, and moving the rate-limit counters to Redis. Behind a
+reverse proxy, also configure Werkzeug's `ProxyFix` so `request.remote_addr` is the client's IP.
 
 ## Testing by layer
 

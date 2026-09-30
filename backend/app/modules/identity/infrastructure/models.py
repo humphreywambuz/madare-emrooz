@@ -1,6 +1,6 @@
 """Section 1: user auth & role tables."""
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import INET, UUID
@@ -52,18 +52,17 @@ class OtpCodeModel(UUIDPrimaryKeyMixin, CreatedAtMixin, db.Model):
     __tablename__ = "otp_codes"
     __table_args__ = (
         sa.Index("ix_otp_codes_mobile_created_at", "mobile", "created_at"),
+        sa.Index("ix_otp_codes_request_ip_created_at", "request_ip", "created_at"),
         sa.CheckConstraint("attempts >= 0", name="attempts_non_negative"),
     )
 
     mobile: Mapped[str] = mapped_column(sa.String(16))
+    # Used to limit how many codes one network can request (SMS abuse).
+    request_ip: Mapped[str | None] = mapped_column(INET)
     code_hash: Mapped[str] = mapped_column(sa.String(255))
     expires_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True))
     attempts: Mapped[int] = mapped_column(sa.SmallInteger, default=0, server_default="0")
     consumed_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
-
-    @property
-    def is_usable(self) -> bool:
-        return self.consumed_at is None and self.expires_at > datetime.now(timezone.utc)
 
 
 class UserSessionModel(UUIDPrimaryKeyMixin, CreatedAtMixin, db.Model):
@@ -82,7 +81,3 @@ class UserSessionModel(UUIDPrimaryKeyMixin, CreatedAtMixin, db.Model):
     revoked_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
 
     user: Mapped[UserModel] = relationship(back_populates="sessions")
-
-    @property
-    def is_active(self) -> bool:
-        return self.revoked_at is None and self.expires_at > datetime.now(timezone.utc)

@@ -147,16 +147,18 @@ text { font-family: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Cons
 <text class="stamp" x="1952" y="682">+ created_at</text>
 </g>
 <g class="tbl g-identity" id="t-otp_codes">
-<rect class="box" x="336" y="516" width="220" height="178" rx="6"/>
-<path class="head" d="M336,548 V522 a6,6 0 0 1 6,-6 H550 a6,6 0 0 1 6,6 V548 Z"/>
-<line class="rule" x1="336" x2="556" y1="548" y2="548"/>
-<text class="tname" x="348" y="537">otp_codes</text>
-<text class="tsec" x="544" y="537" text-anchor="end">§1</text>
-<text class="badge b-pk" x="348" y="562">PK</text>
-<text class="cname" x="374" y="562">id</text>
-<text class="ctype" x="544" y="562" text-anchor="end">uuid</text>
-<text class="cname" x="374" y="582">mobile</text>
-<text class="ctype" x="544" y="582" text-anchor="end">varchar(16)</text>
+<rect class="box" x="336" y="496" width="220" height="198" rx="6"/>
+<path class="head" d="M336,528 V502 a6,6 0 0 1 6,-6 H550 a6,6 0 0 1 6,6 V528 Z"/>
+<line class="rule" x1="336" x2="556" y1="528" y2="528"/>
+<text class="tname" x="348" y="517">otp_codes</text>
+<text class="tsec" x="544" y="517" text-anchor="end">§1</text>
+<text class="badge b-pk" x="348" y="542">PK</text>
+<text class="cname" x="374" y="542">id</text>
+<text class="ctype" x="544" y="542" text-anchor="end">uuid</text>
+<text class="cname" x="374" y="562">mobile</text>
+<text class="ctype" x="544" y="562" text-anchor="end">varchar(16)</text>
+<text class="cname" x="374" y="582">request_ip</text>
+<text class="ctype" x="544" y="582" text-anchor="end">inet?</text>
 <text class="cname" x="374" y="602">code_hash</text>
 <text class="ctype" x="544" y="602" text-anchor="end">varchar(255)</text>
 <text class="cname" x="374" y="622">expires_at</text>

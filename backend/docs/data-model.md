@@ -42,8 +42,9 @@ python scripts/generate_erd.py
   enforces.
 - `users.role` is one of `user`, `doctor`, `midwife` or `admin`. Access level follows from the role.
 - `otp_codes` is keyed by mobile number, because the user may not exist before their first login.
-  It stores only a **hash** of the code, together with its expiry, the number of attempts and when
-  it was used.
+  It stores only a **hash** of the code, together with its expiry, the number of attempts, when
+  it was used, and the IP address that requested it (`request_ip`, used to limit how many codes
+  one network can request).
 - `user_sessions` holds one row per logged-in device (session management), with a hashed refresh
   token and `revoked_at` for logout.
 

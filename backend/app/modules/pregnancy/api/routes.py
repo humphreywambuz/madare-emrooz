@@ -4,21 +4,13 @@ from dataclasses import asdict
 
 from flask import Blueprint, jsonify, request
 
-from app.extensions import db
-from app.modules.pregnancy.application.services import PregnancyService, StartPregnancy
-from app.modules.pregnancy.infrastructure.repository import SqlAlchemyPregnancyRepository
+from app.modules.pregnancy.application.services import StartPregnancy
 from app.shared.api.auth import current_user, login_required
-from app.shared.infrastructure.unit_of_work import SqlAlchemyUnitOfWork
+from app.wiring import pregnancy_service as _service
 
 from .schemas import EndPregnancyRequest, StartPregnancyRequest
 
 bp = Blueprint("pregnancy", __name__, url_prefix="/api/v1/pregnancies")
-
-
-def _service() -> PregnancyService:
-    return PregnancyService(
-        SqlAlchemyPregnancyRepository(db.session), SqlAlchemyUnitOfWork(db.session)
-    )
 
 
 @bp.post("")
