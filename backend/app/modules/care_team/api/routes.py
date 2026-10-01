@@ -6,7 +6,7 @@ Staff:    patient list, red alert inbox, summary card, full record, notes, tags,
 """
 from dataclasses import asdict
 
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 
 from app.modules.identity.domain.enums import UserRole
 from app.shared.api.auth import roles_required
@@ -21,6 +21,7 @@ from .schemas import (
     ChooseMidwifeBody,
     CreateStaffBody,
     NoteBody,
+    PatientListQuery,
     RiskTagBody,
     UpdateStaffBody,
 )
@@ -92,10 +93,22 @@ def choose_midwife():
 # --- staff -------------------------------------------------------------------------
 
 
+@bp.get("/staff/me")
+@roles_required(UserRole.DOCTOR, UserRole.MIDWIFE, ADMIN)
+def staff_me():
+    """The signed-in staff member's name and role, for the panel's header."""
+    return jsonify(asdict(staff_service().get_staff(current_actor().user_id)))
+
+
 @bp.get("/staff/patients")
 @roles_required(*CLINICIANS)
 def list_patients():
-    return _list(care_team_service().list_patients(current_actor()))
+    """?q= searches name, mobile or national code; ?page=1&per_page=20 (max 100)."""
+    query = PatientListQuery.model_validate(request.args.to_dict())
+    page = care_team_service().list_patients(
+        current_actor(), query=query.q, page=query.page, per_page=query.per_page
+    )
+    return jsonify(asdict(page))
 
 
 @bp.get("/staff/alerts")

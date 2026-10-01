@@ -7,10 +7,10 @@ from flask import Blueprint, jsonify, request, send_file
 
 from app.modules.identity.domain.enums import UserRole
 from app.shared.api.auth import roles_required
-from app.shared.api.http import current_actor
+from app.shared.api.http import current_actor, parse_body
 from app.wiring import document_service as _service
 
-from .schemas import UploadForm
+from .schemas import RemoveDocumentBody, UploadForm
 
 bp = Blueprint("documents", __name__, url_prefix="/api/v1")
 
@@ -59,6 +59,15 @@ def documents_for_patient(patient_id):
 @roles_required(UserRole.MIDWIFE, UserRole.DOCTOR)
 def file_for_patient(patient_id, document_id):
     return _file_response(*_service().file_for_patient(current_actor(), patient_id, document_id))
+
+
+@bp.delete("/staff/patients/<uuid:patient_id>/documents/<uuid:document_id>")
+@roles_required(UserRole.MIDWIFE)
+def remove(patient_id, document_id):
+    """Remove a wrongly uploaded document. Optional JSON body: {"reason": "..."}."""
+    reason = parse_body(RemoveDocumentBody).reason
+    _service().remove(current_actor(), patient_id, document_id, reason)
+    return "", 204
 
 
 @bp.get("/documents")

@@ -51,6 +51,11 @@ class PregnancyModel(UUIDPrimaryKeyMixin, TimestampMixin, db.Model):
         server_default=PregnancyStatus.ACTIVE.value,
     )
     ended_on: Mapped[date | None] = mapped_column(sa.Date)
+    # Who corrected the due date and when (e.g. after an ultrasound); NULL = from the LMP.
+    due_date_corrected_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
+    due_date_corrected_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), sa.ForeignKey("users.id")
+    )
 
 
 class PartnerLinkModel(UUIDPrimaryKeyMixin, CreatedAtMixin, db.Model):

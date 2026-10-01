@@ -21,6 +21,7 @@ from app.modules.care_team.domain.entities import (
     StaffProfile,
 )
 from app.modules.care_team.domain.enums import ApprovalScope, CareRole, RiskTag
+from app.modules.care_team.domain.search import PatientSearch
 from app.modules.identity.domain.enums import STAFF_ROLES, UserRole
 from app.shared.domain.errors import ConflictError
 from app.shared.infrastructure.mapping import (
@@ -49,7 +50,7 @@ _users = sa.table(
 _profiles = sa.table(
     "profiles",
     sa.column("user_id"), sa.column("first_name"), sa.column("last_name"),
-    sa.column("join_goal"), sa.column("reproductive_status"),
+    sa.column("join_goal"), sa.column("reproductive_status"), sa.column("national_code"),
 )
 
 
@@ -226,8 +227,14 @@ class SqlAlchemyPatientDirectory:
         )
 
     def list_patients(
-        self, *, staff_id: uuid.UUID | None = None, role: CareRole | None = None
-    ) -> list[PatientRow]:
+        self,
+        *,
+        staff_id: uuid.UUID | None = None,
+        role: CareRole | None = None,
+        search: PatientSearch | None = None,
+        page: int = 1,
+        per_page: int = 20,
+    ) -> tuple[list[PatientRow], int]:
         midwife = aliased(CareAssignmentModel)
         open_alerts = (
             sa.select(
@@ -276,7 +283,30 @@ class SqlAlchemyPatientDirectory:
                 .exists()
             )
             query = query.where(assigned)
-        return [PatientRow(**r._mapping) for r in self._session.execute(query)]
+        if search is not None:
+            query = query.where(*_search_conditions(search))
+        total = self._session.scalar(
+            sa.select(sa.func.count()).select_from(query.order_by(None).subquery())
+        )
+        page_query = query.limit(per_page).offset((page - 1) * per_page)
+        return [PatientRow(**r._mapping) for r in self._session.execute(page_query)], total
+
+
+def _normalised(column):
+    """Lower-case, with Arabic ي/ك read as Persian ی/ک, so either spelling matches."""
+    return sa.func.lower(sa.func.translate(sa.func.coalesce(column, ""), "يكى", "یکی"))
+
+
+def _search_conditions(search: PatientSearch) -> list:
+    if search.digits:
+        pattern = f"%{search.digits}%"
+        return [sa.or_(_users.c.mobile.like(pattern), _profiles.c.national_code.like(pattern))]
+    names = sa.func.concat(_normalised(_profiles.c.first_name), " ", _normalised(_profiles.c.last_name))
+    # Every word must appear somewhere in her name; LIKE wildcards in the input are literal.
+    return [
+        names.like("%" + w.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%")
+        for w in search.words
+    ]
 
 
 class SqlAlchemyApprovalRepository:

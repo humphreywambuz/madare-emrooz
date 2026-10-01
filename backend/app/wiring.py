@@ -118,6 +118,8 @@ def pregnancy_service() -> PregnancyService:
         SqlAlchemyUnitOfWork(db.session),
         # A birth switches her home to the postpartum paths (fitness and rehabilitation).
         on_delivered=profile_service().record_delivery,
+        audit=SqlAlchemyAuditTrail(db.session),
+        access=care_team_service(),
     )
 
 
@@ -151,9 +153,7 @@ def monitoring_service() -> MonitoringService:
     return MonitoringService(
         logs=SqlAlchemyDailyLogRepository(session),
         active_pregnancy_id=pregnancy_service().active_pregnancy_id,
-        on_bleeding=lambda patient_id, log_id: care_team.raise_alert(
-            patient_id, AlertKind.BLEEDING, log_id
-        ),
+        on_bleeding=lambda actor, log_id: care_team.raise_alert(actor, AlertKind.BLEEDING, log_id),
         access=care_team,
         audit=SqlAlchemyAuditTrail(session),
         uow=SqlAlchemyUnitOfWork(session),

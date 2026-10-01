@@ -10,6 +10,7 @@ from app.modules.care_team.domain.entities import (
     StaffProfile,
 )
 from app.modules.care_team.domain.enums import ApprovalScope, CareRole, RiskTag
+from app.modules.care_team.domain.search import PatientSearch
 from app.modules.identity.domain.entities import User
 from app.modules.identity.domain.enums import UserRole
 
@@ -70,9 +71,16 @@ class PatientDirectory(Protocol):
         """True for an app user (role "user"), i.e. a mother."""
 
     def list_patients(
-        self, *, staff_id: uuid.UUID | None = None, role: CareRole | None = None
-    ) -> list[PatientRow]:
-        """Every mother, or only those assigned to ``staff_id`` in ``role``. Open alerts first."""
+        self,
+        *,
+        staff_id: uuid.UUID | None = None,
+        role: CareRole | None = None,
+        search: PatientSearch | None = None,
+        page: int = 1,
+        per_page: int = 20,
+    ) -> tuple[list[PatientRow], int]:
+        """One page of mothers (all, or only those assigned to ``staff_id`` in ``role``),
+        open alerts first, and the total number that match."""
 
 
 class StaffNoteRepository(Protocol):

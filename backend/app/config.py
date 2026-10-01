@@ -1,8 +1,16 @@
 import os
 
 
+# Placeholder keys from this repository; the app refuses them when it sends real SMS.
+DEVELOPMENT_SECRET_KEYS = frozenset({"dev-secret-key", "change-me"})
+
+
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key")
+    # Number of reverse proxies in front of the app (e.g. 1 for nginx). Their
+    # X-Forwarded-For/-Proto/-Host headers are then trusted, so per-network OTP limits and
+    # the audit log see each client's own address. Leave 0 when nothing is in front.
+    TRUSTED_PROXY_COUNT = int(os.environ.get("TRUSTED_PROXY_COUNT", 0))
     SQLALCHEMY_DATABASE_URI = os.environ.get(
         "DATABASE_URL",
         "postgresql+psycopg://postgres:postgres@localhost:5432/madare_emrooz",

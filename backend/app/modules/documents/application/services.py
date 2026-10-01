@@ -103,6 +103,38 @@ class DocumentService:
         self._uow.commit()
         return document
 
+    def remove(
+        self, actor: Actor, patient_id: uuid.UUID, document_id: uuid.UUID, reason: str | None
+    ) -> None:
+        """Her midwife removes a document, e.g. one uploaded to the wrong mother.
+
+        The file is deleted for good; the audit log keeps what it was, who uploaded and
+        removed it, and why.
+        """
+        self._access.require_record_access(actor, patient_id)
+        document = self.require_document_of(patient_id, document_id)
+        self._documents.delete(document_id)
+        self._audit.record(
+            AuditEvent(
+                AuditEventType.DOCUMENT_DELETED,
+                actor_id=actor.user_id,
+                patient_id=patient_id,
+                resource_type="medical_document",
+                resource_id=str(document_id),
+                ip_address=actor.context.ip_address,
+                user_agent=actor.context.user_agent,
+                details={
+                    "reason": reason,
+                    "original_filename": document.original_filename,
+                    "document_type": document.document_type.value,
+                    "file_size_bytes": document.file_size_bytes,
+                    "uploaded_by_id": str(document.uploaded_by_id),
+                    "uploaded_at": document.created_at.isoformat(),
+                },
+            )
+        )
+        self._uow.commit()
+
     def documents_for_patient(self, actor: Actor, patient_id: uuid.UUID) -> list[MedicalDocument]:
         self._access.require_record_access(actor, patient_id)
         documents = self._documents.list_for_patient(patient_id)

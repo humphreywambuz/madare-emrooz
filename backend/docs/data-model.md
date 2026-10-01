@@ -76,7 +76,10 @@ python scripts/generate_erd.py
   with `status = 'active'`**.
 - `estimated_due_date` is calculated from LMP with Naegele's rule, adjusted for cycle length
   (`pregnancy.domain.entities.calculate_due_date`). It is stored so a clinician can correct it, for example from
-  an ultrasound.
+  an ultrasound (`PUT /staff/patients/<id>/pregnancy/due-date`); `due_date_corrected_at` and
+  `due_date_corrected_by_id` record who did and when. After that the due date no longer follows the
+  LMP: if the mother later corrects her LMP (`PATCH /pregnancies/current`), the clinician's date is
+  kept. Every correction is in the audit log with the old and new dates.
 - **The gestational week is not stored** because it changes every day.
   The `Pregnancy` domain entity calculates it from the due date (`gestational_week()`).
 - `partner_links`: the QR code her spouse scans to see the week and due date, without signing in.
@@ -87,7 +90,8 @@ python scripts/generate_erd.py
 ### 5. `daily_logs`
 - Each entry records who entered it (`recorded_by_id`): the mother (only spotting or bleeding, during
   a pregnancy) or her midwife (blood pressure, glucose, weight, symptoms).
-- A bleeding report also creates an `alerts` row in the same transaction (see section 7).
+- A bleeding report also creates an `alerts` row in the same transaction (see section 7), and an
+  `alert_raised` audit row with the cause and who was notified (her midwife, or the admins).
 - `is_red_alert` is a PostgreSQL **generated column**, currently `true` whenever bleeding is
   reported, so it always matches the data. A partial index makes alert lookups fast. More
   alert rules (e.g. BP ≥ 140/90) can be added by changing the expression in a migration.
@@ -98,6 +102,9 @@ python scripts/generate_erd.py
   from its first bytes) is stored in PostgreSQL in `document_files`, kept apart from
   `medical_documents` so listing documents doesn't read the files. The row stores the original file
   name, type, size and `storage_key` (`db:<id>`).
+- Her midwife can remove a document, e.g. one uploaded to the wrong mother. The row and the file
+  are deleted (a rehab imaging link becomes empty); a `document_deleted` audit row keeps the file
+  name, type, size, uploader, upload time and the reason.
 - `document_type` is one of blood, urine, thyroid, ultrasound, screening, imaging (radiology/MRI)
   or other. The row also records when the test was done (`performed_at`), fundal height and fetal
   heart rate.

@@ -104,3 +104,45 @@ def test_mother_cannot_open_someone_elses_document(client, signed_in):
     _, stranger = signed_in()
     document = upload(client, midwife, mother_id).get_json()
     assert client.get(f"/api/v1/documents/{document['id']}/file", headers=stranger).status_code == 404
+
+
+def test_her_midwife_removes_a_wrongly_uploaded_document(client, signed_in):
+    import sqlalchemy as sa
+
+    from app.extensions import db
+    from app.modules.audit.infrastructure.models import AuditLogModel
+    from app.modules.documents.infrastructure.models import DocumentFileModel
+
+    midwife_id, midwife = listed_midwife(client, signed_in)
+    _, other_midwife = listed_midwife(client, signed_in)
+    _, doctor = signed_in(UserRole.DOCTOR)
+    mother_id, mother = pregnant_mother(client, signed_in, midwife_id)
+    document = upload(client, midwife, mother_id).get_json()
+    url = f"/api/v1/staff/patients/{mother_id}/documents/{document['id']}"
+
+    assert client.delete(url, headers=other_midwife).status_code == 403
+    assert client.delete(url, headers=doctor).status_code == 403
+    removed = client.delete(url, json={"reason": "uploaded to the wrong mother"}, headers=midwife)
+    assert removed.status_code == 204
+    assert client.delete(url, headers=midwife).status_code == 404
+
+    assert client.get("/api/v1/documents", headers=mother).get_json()["items"] == []
+    assert client.get(f"/api/v1/documents/{document['id']}/file", headers=mother).status_code == 404
+    assert db.session.scalar(sa.select(sa.func.count()).select_from(DocumentFileModel)) == 0
+    (event,) = db.session.scalars(sa.select(AuditLogModel).where(AuditLogModel.event_type == "document_deleted")).all()
+    assert event.details["reason"] == "uploaded to the wrong mother"
+    assert event.details["original_filename"] == "آزمایش خون.pdf"
+    assert event.details["uploaded_by_id"] == str(midwife_id)
+
+
+def test_removing_her_imaging_clears_the_rehab_link(client, signed_in):
+    from tests.modules.rehabilitation.test_api import POSTPARTUM
+
+    midwife_id, midwife = listed_midwife(client, signed_in)
+    mother_id, mother = signed_in()
+    client.put("/api/v1/my-midwife", json={"midwife_id": str(midwife_id)}, headers=mother)
+    client.put("/api/v1/rehab-profile", json=POSTPARTUM, headers=mother)
+    scan = upload(client, midwife, mother_id, content=PNG, name="mri.png").get_json()
+    client.put(f"/api/v1/staff/patients/{mother_id}/rehab-profile/imaging", json={"document_id": scan["id"]}, headers=midwife)
+    client.delete(f"/api/v1/staff/patients/{mother_id}/documents/{scan['id']}", headers=midwife)
+    assert client.get("/api/v1/rehab-profile", headers=mother).get_json()["imaging_document_id"] is None
