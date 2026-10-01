@@ -1,0 +1,2058 @@
+{
+  "info": {
+    "_postman_id": "dd5b8c48-6494-592b-b705-b23c463effad",
+    "name": "Madare Emrooz API",
+    "description": "Generate the Postman collection and environment in docs/postman/.\n\nRun from the backend directory after adding or changing an endpoint:\n\n    python scripts/generate_postman.py\n\ntests/test_postman.py fails when a route is missing from ENDPOINTS or the JSON files are stale.\n\nUsing it: import both files into Postman and pick the \"Madare Emrooz (local)\" environment.\nRun \"Request code\" then \"Sign in\" in \"Auth (mother)\" or \"Auth (staff)\"; the sign-in saves the\ntoken for that folder. With SMS_BACKEND=console the code is printed in the server log.\nRequests that create something (a pregnancy link, a staff member, a document…) save its id for\nthe requests that follow. The folders are in an order that works with \"Run collection\".",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth (mother)",
+      "description": "Sign-in for the mother's app.",
+      "item": [
+        {
+          "id": "52b4ac7c-89ad-57ec-9b72-8289bb333d25",
+          "name": "Request code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/otp/request",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "otp",
+                "request"
+              ]
+            },
+            "description": "Sends a 6-digit code by SMS (202). Any format works: 0912…, +98 912…, Persian digits. Limits: 1 per minute and 5 per hour per number, 20 per hour per network (429 + Retry-After).",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobile\": \"{{motherMobile}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "89a257d8-adcd-50e9-98c3-c9174b0ef057",
+          "name": "Sign in",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/otp/verify",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "otp",
+                "verify"
+              ]
+            },
+            "description": "Returns a 15-minute access token, a 30-day refresh token and is_new_user. A new number creates a mother's account. Put the SMS code in the otpCode variable first.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobile\": \"{{motherMobile}}\",\n  \"code\": \"{{otpCode}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('motherToken', pm.response.json().access_token); }",
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('motherRefreshToken', pm.response.json().refresh_token); }",
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('patientId', pm.response.json().user.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "3129f039-5281-551f-9acd-f2b91c018cb2",
+          "name": "Refresh tokens",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/token/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "token",
+                "refresh"
+              ]
+            },
+            "description": "The old refresh token stops working.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{motherRefreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('motherToken', pm.response.json().access_token); }",
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('motherRefreshToken', pm.response.json().refresh_token); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "68b632f2-350a-5845-b584-7216525a7971",
+          "name": "Log out",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "204; this device's session ends.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{motherRefreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "67c9ca5c-2424-57e3-978e-055ac3da02ea",
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "me"
+              ]
+            },
+            "description": "The signed-in account: id, mobile, role."
+          }
+        }
+      ],
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{motherToken}}",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Auth (staff)",
+      "description": "Staff (midwife, doctor, admin) sign in the same way. Their account must first be created by an admin (or `flask create-admin` for the first admin).",
+      "item": [
+        {
+          "id": "22431a48-11f8-50d1-bffb-236b10bb968f",
+          "name": "Request code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/otp/request",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "otp",
+                "request"
+              ]
+            },
+            "description": "Sends a 6-digit code by SMS (202). Any format works: 0912…, +98 912…, Persian digits. Limits: 1 per minute and 5 per hour per number, 20 per hour per network (429 + Retry-After).",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobile\": \"{{staffMobile}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "c6fba55b-7a82-5c02-931e-0911f480fc92",
+          "name": "Sign in",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/otp/verify",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "otp",
+                "verify"
+              ]
+            },
+            "description": "Returns a 15-minute access token, a 30-day refresh token and is_new_user. A new number creates a mother's account. Put the SMS code in the otpCode variable first.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobile\": \"{{staffMobile}}\",\n  \"code\": \"{{otpCode}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('staffToken', pm.response.json().access_token); }",
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('staffRefreshToken', pm.response.json().refresh_token); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "4cced56d-5894-51d0-bb7b-c278607f2547",
+          "name": "Refresh tokens",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/token/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "token",
+                "refresh"
+              ]
+            },
+            "description": "The old refresh token stops working.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{staffRefreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('staffToken', pm.response.json().access_token); }",
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('staffRefreshToken', pm.response.json().refresh_token); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "087b00bd-e177-59ee-b49b-da3cbc424547",
+          "name": "Log out",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "204; this device's session ends.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{staffRefreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "39935f67-3801-5741-ab31-fa44a7f45cd3",
+          "name": "Staff me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/staff/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "staff",
+                "me"
+              ]
+            },
+            "description": "Name, role and listing status, for the panel header."
+          }
+        }
+      ],
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{staffToken}}",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Mother · onboarding",
+      "description": "Profile and medical history. GET /profile → 404 means a new user.",
+      "item": [
+        {
+          "id": "e1661faf-7d0c-5cdd-84f0-bd291939b1e2",
+          "name": "Get profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "profile"
+              ]
+            },
+            "description": "`home` says which screen to open: pregnancy, trying_to_conceive, postpartum, fitness or rehabilitation."
+          }
+        },
+        {
+          "id": "c7c393ba-5795-52d1-a3d8-17273b9d8ae6",
+          "name": "Save profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "profile"
+              ]
+            },
+            "description": "201 when created, 200 when updated. join_goal: pregnancy | fitness | rehabilitation; reproductive_status (pregnancy path): trying_to_conceive | pregnant | postpartum.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"سارا\",\n  \"last_name\": \"احمدی\",\n  \"join_goal\": \"pregnancy\",\n  \"reproductive_status\": \"pregnant\",\n  \"national_code\": \"0012345679\",\n  \"birth_date\": \"1995-06-15\",\n  \"height_cm\": 165.5,\n  \"initial_weight_kg\": 60,\n  \"mother_blood_type\": \"O-\",\n  \"spouse_blood_type\": \"A+\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "fc6051c5-7e1e-54b1-86d7-8d80d30588b6",
+          "name": "Get medical history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/medical-history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "medical-history"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "id": "dc3df9aa-b4cf-5a5f-b2c2-add3cf7de099",
+          "name": "Save medical history",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/medical-history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "medical-history"
+              ]
+            },
+            "description": "Every field is optional; null means not answered.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"previous_children_count\": 1,\n  \"miscarriage_count\": 0,\n  \"has_diabetes\": false,\n  \"has_hypertension\": false,\n  \"has_thyroid_disorder\": null,\n  \"spouse_has_diabetes\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{motherToken}}",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Mother · midwife, documents, fitness, rehab",
+      "description": "",
+      "item": [
+        {
+          "id": "45a84afb-8619-58fd-bd05-1a41ba6fe84a",
+          "name": "List midwives",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/midwives",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "midwives"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const items = pm.response.json().items; if (items && items.length) { pm.collectionVariables.set('midwifeId', items[0].id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "27d751e0-b736-53b9-919d-4cf2222e2b61",
+          "name": "My midwife",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/my-midwife",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "my-midwife"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "id": "28a79a6a-960c-59c2-8705-08e6da948f5b",
+          "name": "Choose midwife",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/my-midwife",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "my-midwife"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"midwife_id\": \"{{midwifeId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "522a5bde-011c-5301-b3d8-534e3f3fde34",
+          "name": "My documents",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/documents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "documents"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const items = pm.response.json().items; if (items && items.length) { pm.collectionVariables.set('documentId', items[0].id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "fe503584-b780-5935-a56d-fde5d1fbe626",
+          "name": "Download my document",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/documents/{{documentId}}/file",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "documents",
+                "{{documentId}}",
+                "file"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "id": "4132ffe0-e7e2-5324-8b25-f05d3140b834",
+          "name": "Get fitness profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/fitness-profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "fitness-profile"
+              ]
+            },
+            "description": "dashboard_unlocked is false until staff record the specialist visit."
+          }
+        },
+        {
+          "id": "3319ac6f-7300-5f15-a685-8b6cdb621d68",
+          "name": "Save fitness profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/fitness-profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "fitness-profile"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"goal\": \"weight_loss\",\n  \"goal_note\": \"۵ کیلو تا عید\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "249f1c61-05ed-56fe-9438-f6e12bd1d454",
+          "name": "Get rehab profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/rehab-profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "rehab-profile"
+              ]
+            },
+            "description": "is_advanced_locked stays true until the visit and a doctor's approval."
+          }
+        },
+        {
+          "id": "2adc940a-cff3-5547-b87f-b688f44b19e6",
+          "name": "Save rehab profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/rehab-profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "rehab-profile"
+              ]
+            },
+            "description": "Only the chosen sub-type's questions may be answered.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subcategory\": \"postpartum_recovery\",\n  \"pain_level\": 4,\n  \"had_related_surgery\": true,\n  \"related_surgery_name\": \"سزارین\",\n  \"uses_pain_medication\": false,\n  \"time_since_delivery\": \"two_to_six_months\",\n  \"has_pelvic_warning_signs\": false,\n  \"has_diastasis_recti_or_stitch_pain\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{motherToken}}",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Mother · pregnancy",
+      "description": "Pregnancy, bleeding reports, partner QR code.",
+      "item": [
+        {
+          "id": "712fc01f-8c06-58b3-ab2e-72e7dda99998",
+          "name": "Start pregnancy",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pregnancies",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pregnancies"
+              ]
+            },
+            "description": "The due date is calculated from the LMP. Only one active pregnancy (409).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lmp_date\": \"2026-05-01\",\n  \"conception_type\": \"natural\",\n  \"avg_cycle_length_days\": 28,\n  \"care_provider_type\": \"midwife\",\n  \"care_provider_name\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "76e66bc6-977f-571a-a5d4-f663cb381d7f",
+          "name": "Current pregnancy",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pregnancies/current",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pregnancies",
+                "current"
+              ]
+            },
+            "description": "Week and due date. due_date_source is lmp or clinician."
+          }
+        },
+        {
+          "id": "c8a53ce6-8b16-5c0b-b160-941baf5e3725",
+          "name": "Correct pregnancy details",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pregnancies/current",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pregnancies",
+                "current"
+              ]
+            },
+            "description": "Send only the fields to fix: lmp_date, avg_cycle_length_days, conception_type, care_provider_type, care_provider_name. A clinician-set due date is kept.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lmp_date\": \"2026-05-01\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "d04a1aeb-7016-5ca9-991a-0e70bb8cf778",
+          "name": "Report bleeding",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/daily-logs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "daily-logs"
+              ]
+            },
+            "description": "Only during a pregnancy. true raises a red alert for her midwife (or the admins).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"has_spotting_or_bleeding\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "b2dce718-fd1e-56ab-9c41-00bc18f4edd2",
+          "name": "My daily logs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/daily-logs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "daily-logs"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "id": "ae5c2bfe-5a22-540d-a4f9-16af0e85020a",
+          "name": "Create partner QR link",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/partner-link",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "partner-link"
+              ]
+            },
+            "description": "Returns url (encode it in the QR code) and token. A new link replaces the old one."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('partnerToken', pm.response.json().token); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "ed42e99a-a5b2-5868-8994-da8ee3848c13",
+          "name": "Current partner link",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/partner-link",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "partner-link"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "id": "8351ae5a-9542-5457-88ad-4fd753714b3f",
+          "name": "Partner page (no sign-in, HTML)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/p/{{partnerToken}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "p",
+                "{{partnerToken}}"
+              ]
+            },
+            "description": "What the spouse sees after scanning: Persian page with the week and Jalali due date.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "id": "7c01c6f7-05ae-5e0f-bcbe-29ef37bf8d14",
+          "name": "Partner view (no sign-in, JSON)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/partner/{{partnerToken}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "partner",
+                "{{partnerToken}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "id": "fb540a25-eb63-5c81-9b7e-70e7c02d6dd9",
+          "name": "Turn partner link off",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/partner-link",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "partner-link"
+              ]
+            },
+            "description": ""
+          }
+        }
+      ],
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{motherToken}}",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Staff · patients",
+      "description": "Doctors see every mother (Phase 1); a midwife sees the mothers who chose her.",
+      "item": [
+        {
+          "id": "e803f7e4-a07e-5265-b73b-23d7feef0485",
+          "name": "Patient list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/staff/patients?q=&page=1&per_page=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "staff",
+                "patients"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": ""
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "per_page",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "q matches a name, mobile (any form, Persian digits) or national code. Open alerts first."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const items = pm.response.json().items; if (items && items.length) { pm.collectionVariables.set('patientId', items[0].id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "1cac8ab1-af98-55d6-a6aa-e4c3713518ca",
+          "name": "Summary card",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/staff/patients/{{patientId}}/summary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "staff",
+                "patients",
+                "{{patientId}}",
+                "summary"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "id": "3d71b5e5-4671-5c42-ba15-3d0a5f66177a",
+          "name": "Full record",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/staff/patients/{{patientId}}/record",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "staff",
+                "patients",
+                "{{patientId}}",
+                "record"
+              ]
+            },
+            "description": "Audited."
+          }
+        },
+        {
+          "id": "219ed18e-18db-5d2d-9b8e-ded55b4af442",
+          "name": "Daily logs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/staff/patients/{{patientId}}/daily-logs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "staff",
+                "patients",
+                "{{patientId}}",
+                "daily-logs"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "id": "7ee99c74-5511-5b33-9201-35f8f29260c5",
+          "name": "Record vitals (midwife)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/staff/patients/{{patientId}}/daily-logs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "staff",
+                "patients",
+                "{{patientId}}",
+                "daily-logs"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"systolic_bp\": 120,\n  \"diastolic_bp\": 80,\n  \"blood_glucose_mg_dl\": 95,\n  \"weight_kg\": 68.5,\n  \"has_headache\": false,\n  \"other_complaints\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "e505efff-476e-59ab-8f37-10aa2801e381",
+          "name": "Documents",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/staff/patients/{{patientId}}/documents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "staff",
+                "patients",
+                "{{patientId}}",
+                "documents"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const items = pm.response.json().items; if (items && items.length) { pm.collectionVariables.set('documentId', items[0].id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "d49fb2e0-8db7-526e-92b0-2eac53f2a018",
+          "name": "Upload document (midwife)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/staff/patients/{{patientId}}/documents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "staff",
+                "patients",
+                "{{patientId}}",
+                "documents"
+              ]
+            },
+            "description": "JPEG, PNG or PDF up to 10 MB. Choose the file in the form-data `file` row.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "document_type",
+                  "type": "text",
+                  "value": "ultrasound"
+                },
+                {
+                  "key": "performed_at",
+                  "type": "text",
+                  "value": "2026-09-20T09:30:00+03:30"
+                },
+                {
+                  "key": "fundal_height_cm",
+                  "type": "text",
+                  "value": "24.5"
+                },
+                {
+                  "key": "fetal_heart_rate_bpm",
+                  "type": "text",
+                  "value": "140"
+                },
+                {
+                  "key": "notes",
+                  "type": "text",
+                  "value": ""
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('documentId', pm.response.json().id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "5cd5b155-ed1e-51ab-95de-39afe1ff043a",
+          "name": "Download document",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/staff/patients/{{patientId}}/documents/{{documentId}}/file",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "staff",
+                "patients",
+                "{{patientId}}",
+                "documents",
+                "{{documentId}}",
+                "file"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "id": "2721d177-2a9d-5c83-b28c-da28dd049b51",
+          "name": "Remove document (midwife)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/staff/patients/{{patientId}}/documents/{{documentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "staff",
+                "patients",
+                "{{patientId}}",
+                "documents",
+                "{{documentId}}"
+              ]
+            },
+            "description": "Deletes the file; the audit log keeps what it was and why.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"uploaded to the wrong mother\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "0d10a099-c733-5c50-b5c3-d3cf2333a3dc",
+          "name": "Correct due date",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/staff/patients/{{patientId}}/pregnancy/due-date",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "staff",
+                "patients",
+                "{{patientId}}",
+                "pregnancy",
+                "due-date"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estimated_due_date\": \"2027-02-01\",\n  \"reason\": \"ultrasound at 12 weeks\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "04891f1e-e497-5872-b44f-786f079d381a",
+          "name": "Add note",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/staff/patients/{{patientId}}/notes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "staff",
+                "patients",
+                "{{patientId}}",
+                "notes"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"body\": \"Next ultrasound in two weeks.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "826d8fbf-2c76-5e89-afa3-ce4375b5193f",
+          "name": "Add risk tag",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/staff/patients/{{patientId}}/risk-tags",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "staff",
+                "patients",
+                "{{patientId}}",
+                "risk-tags"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tag\": \"{{riskTag}}\",\n  \"note\": \"Hb 9.8\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "83379e42-29e7-5bac-a0bb-94185434082a",
+          "name": "Remove risk tag",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/staff/patients/{{patientId}}/risk-tags/{{riskTag}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "staff",
+                "patients",
+                "{{patientId}}",
+                "risk-tags",
+                "{{riskTag}}"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "id": "ddd37c88-912d-5975-a78d-e1cc03a40880",
+          "name": "Approve plan (doctor)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/staff/patients/{{patientId}}/approvals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "staff",
+                "patients",
+                "{{patientId}}",
+                "approvals"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scope\": \"{{approvalScope}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "5c3ca82e-4112-52c8-b10a-771c1eff1806",
+          "name": "Revoke approval (doctor)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/staff/patients/{{patientId}}/approvals/{{approvalScope}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "staff",
+                "patients",
+                "{{patientId}}",
+                "approvals",
+                "{{approvalScope}}"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "id": "537dfa2c-c7d6-5c67-ac44-86c7e0a456fa",
+          "name": "Record fitness specialist visit",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/staff/patients/{{patientId}}/fitness-profile/specialist-visit",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "staff",
+                "patients",
+                "{{patientId}}",
+                "fitness-profile",
+                "specialist-visit"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "id": "cead2e8b-4abb-595e-b9ab-961b0f569241",
+          "name": "Record rehab specialist visit",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/staff/patients/{{patientId}}/rehab-profile/specialist-visit",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "staff",
+                "patients",
+                "{{patientId}}",
+                "rehab-profile",
+                "specialist-visit"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "id": "6462e313-02f0-5500-aa3c-b2846fcbd6c4",
+          "name": "Link rehab imaging (midwife)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/staff/patients/{{patientId}}/rehab-profile/imaging",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "staff",
+                "patients",
+                "{{patientId}}",
+                "rehab-profile",
+                "imaging"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"document_id\": \"{{documentId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{staffToken}}",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Staff · alerts",
+      "description": "",
+      "item": [
+        {
+          "id": "3347b8e8-8423-5baf-8a24-fac6b5928af0",
+          "name": "My alerts (midwife)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/staff/alerts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "staff",
+                "alerts"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const items = pm.response.json().items; if (items && items.length) { pm.collectionVariables.set('alertId', items[0].id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "65cf023c-85f5-5244-8b48-962db01e1447",
+          "name": "Mark alert seen",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/staff/alerts/{{alertId}}/seen",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "staff",
+                "alerts",
+                "{{alertId}}",
+                "seen"
+              ]
+            },
+            "description": "Her midwife, or an admin while she has no midwife."
+          }
+        }
+      ],
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{staffToken}}",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Admin",
+      "description": "Sign in as an admin in Auth (staff).",
+      "item": [
+        {
+          "id": "6d4ab4ce-5adc-50d4-8a1b-0844d63c69cf",
+          "name": "Create staff",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/staff",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "staff"
+              ]
+            },
+            "description": "role: midwife | doctor | admin. Listed midwives appear in the app for mothers to choose.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobile\": \"{{staffMobile}}\",\n  \"role\": \"midwife\",\n  \"first_name\": \"مریم\",\n  \"last_name\": \"رحیمی\",\n  \"bio\": \"\",\n  \"is_listed\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) { pm.collectionVariables.set('staffId', pm.response.json().user_id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "767bb537-49d1-5ad7-b789-765e50b2876d",
+          "name": "List staff",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/staff",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "staff"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "id": "4647e98e-1d1e-5017-93ae-7d865c9cfd43",
+          "name": "Update staff",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/staff/{{staffId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "staff",
+                "{{staffId}}"
+              ]
+            },
+            "description": "Send only what changes. Deactivating a midwife sends her mothers' alerts to the admins.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_listed\": true,\n  \"is_active\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "7177a794-9ca9-5ee3-b897-0419cfd3b672",
+          "name": "Unassigned mothers' alerts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/unassigned-alerts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "unassigned-alerts"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const items = pm.response.json().items; if (items && items.length) { pm.collectionVariables.set('alertId', items[0].id); }"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{staffToken}}",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Mother · after the birth",
+      "description": "Last, so the requests above still see an active pregnancy.",
+      "item": [
+        {
+          "id": "27593fb0-f4e0-55aa-8ec6-777b060aa0d5",
+          "name": "End pregnancy",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pregnancies/current/end",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pregnancies",
+                "current",
+                "end"
+              ]
+            },
+            "description": "delivered switches her home to postpartum; ended for other outcomes.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"delivered\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{motherToken}}",
+            "type": "string"
+          }
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "motherMobile",
+      "value": "09121234567"
+    },
+    {
+      "key": "staffMobile",
+      "value": "09120000001"
+    },
+    {
+      "key": "otpCode",
+      "value": ""
+    },
+    {
+      "key": "motherToken",
+      "value": ""
+    },
+    {
+      "key": "motherRefreshToken",
+      "value": ""
+    },
+    {
+      "key": "staffToken",
+      "value": ""
+    },
+    {
+      "key": "staffRefreshToken",
+      "value": ""
+    },
+    {
+      "key": "patientId",
+      "value": ""
+    },
+    {
+      "key": "staffId",
+      "value": ""
+    },
+    {
+      "key": "midwifeId",
+      "value": ""
+    },
+    {
+      "key": "alertId",
+      "value": ""
+    },
+    {
+      "key": "documentId",
+      "value": ""
+    },
+    {
+      "key": "partnerToken",
+      "value": ""
+    },
+    {
+      "key": "riskTag",
+      "value": "anemia"
+    },
+    {
+      "key": "approvalScope",
+      "value": "rehabilitation_plan"
+    }
+  ]
+}

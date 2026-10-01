@@ -55,7 +55,6 @@ from .views import (
     MidwifeOption,
     NoteView,
     PatientPage,
-    PatientRow,
     RiskTagView,
     StaffView,
 )
