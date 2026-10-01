@@ -87,8 +87,14 @@ def test_file_checks(app, client, signed_in):
 def test_request_over_the_limit_is_refused(app, client, signed_in):
     midwife_id, midwife = listed_midwife(client, signed_in)
     mother_id, _ = pregnant_mother(client, signed_in, midwife_id)
-    big = b"%PDF-" + b"x" * (app.config["MAX_CONTENT_LENGTH"] + 1)
-    response = upload(client, midwife, mother_id, content=big)
+    # A raw body: the test client would otherwise spool a big multipart upload to a temp file.
+    big = b"x" * (app.config["MAX_CONTENT_LENGTH"] + 1)
+    response = client.post(
+        f"/api/v1/staff/patients/{mother_id}/documents",
+        data=big,
+        content_type="multipart/form-data; boundary=x",
+        headers=midwife,
+    )
     assert response.status_code == 413 and response.get_json()["error"]["code"] == "too_large"
 
 
