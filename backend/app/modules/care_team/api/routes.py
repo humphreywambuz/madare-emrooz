@@ -2,7 +2,7 @@
 
 Admins:   create and manage staff accounts; see alerts from mothers with no midwife.
 Mothers:  list the midwives and choose one.
-Staff:    patient list, red alert inbox.
+Staff:    patient list, red alert inbox, summary card, full record, notes, tags, approvals.
 """
 from dataclasses import asdict
 
@@ -11,9 +11,19 @@ from flask import Blueprint, jsonify
 from app.modules.identity.domain.enums import UserRole
 from app.shared.api.auth import roles_required
 from app.shared.api.http import current_actor, parse_body
-from app.wiring import care_team_service, staff_service
+from app.shared.domain.errors import NotFoundError
+from app.modules.care_team.domain.enums import ApprovalScope, RiskTag
+from app.wiring import care_team_service, clinical_service, staff_service
 
-from .schemas import ChooseMidwifeBody, CreateStaffBody, UpdateStaffBody
+from .record import full_record, summary_card
+from .schemas import (
+    ApprovalBody,
+    ChooseMidwifeBody,
+    CreateStaffBody,
+    NoteBody,
+    RiskTagBody,
+    UpdateStaffBody,
+)
 
 bp = Blueprint("care_team", __name__, url_prefix="/api/v1")
 
@@ -99,3 +109,61 @@ def midwife_alerts():
 def mark_alert_seen(alert_id):
     care_team_service().mark_alert_seen(current_actor(), alert_id)
     return "", 204
+
+
+# --- one mother's record -------------------------------------------------------------
+
+
+@bp.get("/staff/patients/<uuid:patient_id>/summary")
+@roles_required(*CLINICIANS)
+def patient_summary(patient_id):
+    return jsonify(summary_card(current_actor(), patient_id))
+
+
+@bp.get("/staff/patients/<uuid:patient_id>/record")
+@roles_required(*CLINICIANS)
+def patient_record(patient_id):
+    return jsonify(full_record(current_actor(), patient_id))
+
+
+@bp.post("/staff/patients/<uuid:patient_id>/notes")
+@roles_required(*CLINICIANS)
+def add_note(patient_id):
+    clinical_service().add_note(current_actor(), patient_id, parse_body(NoteBody).body)
+    return "", 201
+
+
+@bp.post("/staff/patients/<uuid:patient_id>/risk-tags")
+@roles_required(*CLINICIANS)
+def add_risk_tag(patient_id):
+    body = parse_body(RiskTagBody)
+    clinical_service().add_risk_tag(current_actor(), patient_id, body.tag, body.note)
+    return "", 201
+
+
+@bp.delete("/staff/patients/<uuid:patient_id>/risk-tags/<tag>")
+@roles_required(*CLINICIANS)
+def remove_risk_tag(patient_id, tag):
+    clinical_service().remove_risk_tag(current_actor(), patient_id, _enum(RiskTag, tag))
+    return "", 204
+
+
+@bp.post("/staff/patients/<uuid:patient_id>/approvals")
+@roles_required(UserRole.DOCTOR)
+def approve(patient_id):
+    clinical_service().approve(current_actor(), patient_id, parse_body(ApprovalBody).scope)
+    return "", 201
+
+
+@bp.delete("/staff/patients/<uuid:patient_id>/approvals/<scope>")
+@roles_required(UserRole.DOCTOR)
+def revoke_approval(patient_id, scope):
+    clinical_service().revoke(current_actor(), patient_id, _enum(ApprovalScope, scope))
+    return "", 204
+
+
+def _enum(enum_cls, value):
+    try:
+        return enum_cls(value)
+    except ValueError:
+        raise NotFoundError(f"Unknown {enum_cls.__name__}: {value}.") from None

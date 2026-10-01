@@ -5,7 +5,7 @@ from datetime import datetime
 
 from app.shared.domain.errors import ValidationError
 
-from .enums import AlertKind, ApprovalScope, CareRole
+from .enums import AlertKind, ApprovalScope, CareRole, RiskTag
 
 
 @dataclass
@@ -77,3 +77,26 @@ class CareApproval:
     def revoke(self, by: uuid.UUID, now: datetime) -> None:
         self.revoked_at = now
         self.revoked_by_id = by
+
+
+@dataclass
+class StaffNote:
+    """A doctor's or midwife's opinion or intervention, kept in the mother's record."""
+
+    patient_id: uuid.UUID
+    author_id: uuid.UUID
+    body: str
+    created_at: datetime
+    id: uuid.UUID = field(default_factory=uuid.uuid4)
+
+
+@dataclass
+class RiskTagAssignment:
+    """A risk tag added by staff to the summary card."""
+
+    patient_id: uuid.UUID
+    tag: RiskTag
+    added_by_id: uuid.UUID
+    created_at: datetime
+    note: str | None = None
+    id: uuid.UUID = field(default_factory=uuid.uuid4)

@@ -18,20 +18,21 @@ backend/
 ├── app/
 │   ├── __init__.py            # create_app(): registers extensions, modules, error handlers
 │   ├── wiring.py              # builds each use case with its concrete adapters
+│   ├── cli.py                 # flask create-admin
 │   ├── config.py
 │   ├── extensions.py          # db, migrate
 │   ├── shared/                # shared kernel, used by every module
-│   │   ├── domain/            #   errors (ValidationError, NotFoundError, …)
-│   │   ├── application/       #   UnitOfWork port
-│   │   ├── infrastructure/    #   ORM mixins and enum columns, SqlAlchemyUnitOfWork, access tokens
-│   │   └── api/               #   JSON error handlers, login_required / roles_required
+│   │   ├── domain/            #   errors (ValidationError, NotFoundError, …), Jalali dates
+│   │   ├── application/       #   UnitOfWork and PatientAccess ports, Actor / RequestContext
+│   │   ├── infrastructure/    #   ORM mixins and enum columns, KeyedRepository, access tokens
+│   │   └── api/               #   JSON error handlers, login_required / roles_required, body parsing
 │   └── modules/
 │       ├── identity/          # §1     users, OTP codes, sessions
 │       ├── profiles/          # §2–3   demographic profile, medical history
-│       ├── pregnancy/         # §4     pregnancy path (reference module, all four layers)
-│       ├── monitoring/        # §5     daily logs
-│       ├── documents/         # §6     medical documents
-│       ├── care_team/         # §7     risk tags, staff notes, approvals
+│       ├── pregnancy/         # §4     pregnancy path, partner QR code (reference module)
+│       ├── monitoring/        # §5     bleeding reports, the midwife's daily log
+│       ├── documents/         # §6     medical documents (files stored in PostgreSQL)
+│       ├── care_team/         # §7     staff, midwife choice, access, alerts, tags, notes, approvals
 │       ├── audit/             # §8     audit log
 │       ├── fitness/           # §9     fitness path
 │       └── rehabilitation/    # §10–11 rehab profile and access control
@@ -60,8 +61,7 @@ modules/pregnancy/
     └── routes.py         # Flask blueprint /api/v1/pregnancies
 ```
 
-The other modules have their `domain` and `infrastructure` layers so far. They get `application`
-and `api` layers as their endpoints are built.
+Every module now has all four layers (audit has no `api`: it is written to by the others).
 
 ## The dependency rule
 
@@ -88,6 +88,16 @@ example, rehabilitation can ask care_team "does this patient have an active reha
 through a care_team use case, but it never queries care_team's tables directly. Foreign keys
 between modules are declared by table name (`ForeignKey("users.id")`), and ORM `relationship()`
 links are only used inside a module.
+
+One exception, for reads only: the staff panel's lists (patients, alerts, staff, notes) need names
+and mobile numbers, so `care_team/infrastructure/repositories.py` joins `users` and `profiles` by
+table name (`sa.table("users", …)`) instead of making one query per row. It never writes to them;
+changes always go through the owning module.
+
+Modules that need something from another module at run time receive it as a port or a plain
+function from `app/wiring.py`. For example, monitoring gets `on_bleeding`, which raises a care team
+alert in the same transaction, and every module that shows or changes a mother's record gets
+`PatientAccess` (implemented by the care team) to check who may see her.
 
 `shared/` never imports a feature module.
 
@@ -189,6 +199,44 @@ expires. Responses serialise dates as ISO 8601 (`shared/api/json.py`).
 Not built yet: moving the rate-limit counters to Redis. Behind a
 reverse proxy, also configure Werkzeug's `ProxyFix` so `request.remote_addr` is the client's IP.
 
+## Phase 1 API
+
+All paths start with `/api/v1` except the partner page. "Mother" is an app user (role `user`).
+
+| Who | Endpoints |
+|---|---|
+| Anyone | `POST /auth/otp/request`, `/auth/otp/verify`, `/auth/token/refresh`, `/auth/logout` |
+| Signed in | `GET /me` |
+| Mother: onboarding | `GET/PUT /profile` (404 = new user; `home` says which screen to open), `GET/PUT /medical-history` |
+| Mother: pregnancy | `POST /pregnancies`, `GET /pregnancies/current`, `POST /pregnancies/current/end`, `POST/GET /daily-logs` (bleeding only) |
+| Mother: partner QR | `POST/GET/DELETE /partner-link` |
+| Mother: midwife | `GET /midwives`, `GET/PUT /my-midwife` |
+| Mother: other paths | `GET/PUT /fitness-profile`, `GET/PUT /rehab-profile` |
+| Mother: documents | `GET /documents`, `GET /documents/<id>/file` |
+| Spouse (no sign-in) | `GET /p/<token>` (Persian page), `GET /partner/<token>` (JSON) |
+| Midwife and doctor | `GET /staff/patients`, and under `/staff/patients/<id>`: `summary`, `record`, `daily-logs` (GET), `documents` (GET), `documents/<doc>/file`, `notes` (POST), `risk-tags` (POST, DELETE `/<tag>`), `fitness-profile/specialist-visit`, `rehab-profile/specialist-visit` |
+| Midwife only | `GET /staff/alerts`, `POST /staff/patients/<id>/daily-logs`, `POST /staff/patients/<id>/documents` (multipart), `PUT /staff/patients/<id>/rehab-profile/imaging` |
+| Doctor only | `POST /staff/patients/<id>/approvals`, `DELETE /staff/patients/<id>/approvals/<scope>` |
+| Admin | `POST/GET /admin/staff`, `PATCH /admin/staff/<id>`, `GET /admin/unassigned-alerts` |
+| Midwife or admin | `POST /staff/alerts/<id>/seen` |
+
+The first admin is created on the server with `flask create-admin 0912… --first-name … --last-name …`.
+
+### Who sees which mother
+
+The rules are in `care_team/domain/policies.py` and are checked by `CareTeamService.require_record_access`.
+A refusal returns 403 and is written to the audit log.
+
+| Role | Can open a mother's record | Red alerts |
+|---|---|---|
+| Midwife | only mothers who chose her (`care_assignments`) | her mothers' alerts |
+| Doctor | every mother while `DOCTOR_PATIENT_SCOPE=all` (Phase 1); only mothers who chose them once it is `assigned` (Phase 2) | none |
+| Admin | none: admins manage accounts | alerts from mothers who haven't chosen a midwife yet |
+
+`care_assignments` already has a `doctor` role, so Phase 2 only needs an endpoint for the mother to
+choose her gynecologist and the setting changed to `assigned`. When an admin deactivates a midwife,
+her assignments end, so her mothers' alerts go to the admins until they choose again.
+
 ## Testing by layer
 
 | Layer | How it is tested | Example |
@@ -216,7 +264,7 @@ A new module also needs its name added to `MODULES` in `app/modules/__init__.py`
 
 ## Redis
 
-Nothing in Phase 1 needs Redis yet. When the identity module is built, Redis belongs in
-`shared/infrastructure/` (or `identity/infrastructure/`) behind a port such as `RateLimiter`, for OTP
-send limits, brute-force counters and revoked-session lookups. Use cases depend on the port, not on
-Redis.
+Nothing in Phase 1 needs Redis yet: OTP limits are counted from `otp_codes` in PostgreSQL. If load
+grows, Redis belongs in `shared/infrastructure/` (or `identity/infrastructure/`) behind a port such
+as `RateLimiter`, for OTP send limits, brute-force counters and revoked-session lookups. Use cases
+depend on the port, not on Redis.

@@ -54,7 +54,7 @@ class Profile:
     @property
     def home(self) -> HomePath:
         if self.join_goal is JoinGoal.PREGNANCY:
-            return _HOME_FOR_STATUS[self.reproductive_status]
+            return _HOME_FOR_STATUS.get(self.reproductive_status, HomePath.PREGNANCY)
         return HomePath(self.join_goal.value)
 
     @property

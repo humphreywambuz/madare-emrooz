@@ -9,23 +9,54 @@ from typing import Any
 
 from app.modules.audit.application.trail import AuditEvent, AuditTrail
 from app.modules.audit.domain.enums import AuditEventType
-from app.modules.care_team.domain.entities import Alert, CareAssignment, StaffProfile
-from app.modules.care_team.domain.enums import AlertKind, CareRole, DoctorPatientScope
+from app.modules.care_team.domain.entities import (
+    Alert,
+    CareApproval,
+    CareAssignment,
+    RiskTagAssignment,
+    StaffNote,
+    StaffProfile,
+)
+from app.modules.care_team.domain.enums import (
+    AlertKind,
+    ApprovalScope,
+    CareRole,
+    DoctorPatientScope,
+    RiskTag,
+)
 from app.modules.care_team.domain.policies import alert_goes_to_admins, can_open_record
+from app.modules.care_team.domain.risk import PatientFacts, derive_risk_tags
 from app.modules.identity.domain.enums import UserRole
+from app.shared.application.access import PatientAccess
 from app.shared.application.context import Actor
 from app.shared.application.unit_of_work import UnitOfWork
-from app.shared.domain.errors import NotFoundError, PermissionDeniedError, ValidationError
+from app.shared.domain.errors import (
+    ConflictError,
+    NotFoundError,
+    PermissionDeniedError,
+    ValidationError,
+)
 
 from .ports import (
     AlertRepository,
+    ApprovalRepository,
     CareAssignmentRepository,
     PatientDirectory,
+    RiskTagRepository,
     StaffAccounts,
     StaffDirectory,
+    StaffNoteRepository,
     StaffProfileRepository,
 )
-from .views import AlertView, MidwifeOption, PatientRow, StaffView
+from .views import (
+    AlertView,
+    ApprovalView,
+    MidwifeOption,
+    NoteView,
+    PatientRow,
+    RiskTagView,
+    StaffView,
+)
 
 
 def _utcnow() -> datetime:
@@ -111,6 +142,9 @@ class StaffService:
         profile = self._profiles.get(user_id)
         if account is None or profile is None:
             raise NotFoundError("Staff member not found.")
+        cleared = sorted(k for k, v in changes.items() if v is None and k != "bio")
+        if cleared:
+            raise ValidationError("These fields can't be empty.", details={"fields": cleared})
         for name in ("first_name", "last_name", "bio", "is_listed"):
             if name in changes:
                 setattr(profile, name, changes[name])
@@ -283,3 +317,107 @@ class CareTeamService:
         # Commit before raising so the refusal is kept.
         self._uow.commit()
         raise PermissionDeniedError("This mother is not one of your patients.")
+
+
+class ClinicalService:
+    """The staff panel's clinical actions: notes, summary-card tags and approvals."""
+
+    def __init__(
+        self,
+        *,
+        access: PatientAccess,
+        notes: StaffNoteRepository,
+        tags: RiskTagRepository,
+        approvals: ApprovalRepository,
+        facts: Callable[[uuid.UUID], PatientFacts],
+        audit: AuditTrail,
+        uow: UnitOfWork,
+        now: Callable[[], datetime] = _utcnow,
+    ):
+        self._access = access
+        self._notes = notes
+        self._tags = tags
+        self._approvals = approvals
+        self._facts = facts
+        self._audit = audit
+        self._uow = uow
+        self._now = now
+
+    # Reads below expect the caller to have checked access (see require_record_access).
+
+    def notes(self, patient_id: uuid.UUID) -> list[NoteView]:
+        return self._notes.list_for_patient(patient_id)
+
+    def risk_tags(self, patient_id: uuid.UUID) -> list[RiskTagView]:
+        added = {a.tag: a for a in self._tags.list_for_patient(patient_id)}
+        derived = derive_risk_tags(self._facts(patient_id))
+        views = [
+            RiskTagView(tag, "staff", added[tag].note, added[tag].added_by_id)
+            if tag in added else RiskTagView(tag, "record")
+            for tag in RiskTag
+            if tag in added or tag in derived
+        ]
+        return views
+
+    def approvals(self, patient_id: uuid.UUID) -> list[ApprovalView]:
+        return [
+            ApprovalView(
+                a.id, a.scope, a.approved_by_id, a.approved_at, a.revoked_at, a.revoked_by_id,
+                a.is_active,
+            )
+            for a in self._approvals.list_for_patient(patient_id)
+        ]
+
+    # --- writes ------------------------------------------------------------------
+
+    def add_note(self, actor: Actor, patient_id: uuid.UUID, body: str) -> None:
+        self._access.require_record_access(actor, patient_id)
+        if not body.strip():
+            raise ValidationError("The note is empty.", details={"field": "body"})
+        note = StaffNote(patient_id, actor.user_id, body.strip(), created_at=self._now())
+        self._notes.add(note)
+        self._commit(AuditEventType.RECORD_CREATED, actor, patient_id, "staff_note", note.id)
+
+    def add_risk_tag(self, actor: Actor, patient_id: uuid.UUID, tag: RiskTag, note: str | None) -> None:
+        self._access.require_record_access(actor, patient_id)
+        self._tags.add(RiskTagAssignment(patient_id, tag, actor.user_id, self._now(), note))
+        self._commit(AuditEventType.RECORD_UPDATED, actor, patient_id, "risk_tag", tag.value)
+
+    def remove_risk_tag(self, actor: Actor, patient_id: uuid.UUID, tag: RiskTag) -> None:
+        self._access.require_record_access(actor, patient_id)
+        if not self._tags.remove(patient_id, tag):
+            raise NotFoundError("This tag was not added by staff.")
+        self._commit(AuditEventType.RECORD_UPDATED, actor, patient_id, "risk_tag", tag.value)
+
+    def approve(self, actor: Actor, patient_id: uuid.UUID, scope: ApprovalScope) -> None:
+        """Only doctors approve, e.g. the rehabilitation plan after the specialist visit."""
+        self._require_doctor(actor)
+        self._access.require_record_access(actor, patient_id)
+        if self._approvals.active(patient_id, scope) is not None:
+            raise ConflictError("This plan is already approved.")
+        approval = CareApproval(patient_id, actor.user_id, scope, approved_at=self._now())
+        self._approvals.add(approval)
+        self._commit(AuditEventType.APPROVAL_GRANTED, actor, patient_id, "care_approval", approval.id)
+
+    def revoke(self, actor: Actor, patient_id: uuid.UUID, scope: ApprovalScope) -> None:
+        self._require_doctor(actor)
+        self._access.require_record_access(actor, patient_id)
+        approval = self._approvals.active(patient_id, scope)
+        if approval is None:
+            raise NotFoundError("There is no active approval to revoke.")
+        approval.revoke(actor.user_id, self._now())
+        self._approvals.save(approval)
+        self._commit(AuditEventType.APPROVAL_REVOKED, actor, patient_id, "care_approval", approval.id)
+
+    def _require_doctor(self, actor: Actor) -> None:
+        if actor.role != UserRole.DOCTOR:
+            raise PermissionDeniedError("Only doctors can approve a plan.")
+
+    def _commit(self, event_type, actor: Actor, patient_id, resource: str, resource_id) -> None:
+        self._audit.record(
+            _audit_event(
+                event_type, actor, patient_id=patient_id,
+                resource_type=resource, resource_id=resource_id,
+            )
+        )
+        self._uow.commit()

@@ -93,6 +93,10 @@ class PregnancyService:
         self._uow.commit()
         return PregnancyView.of(pregnancy, today)
 
+    def find_active(self, user_id: uuid.UUID) -> PregnancyView | None:
+        pregnancy = self._pregnancies.get_active_for_user(user_id)
+        return PregnancyView.of(pregnancy, self._today()) if pregnancy else None
+
     def active_pregnancy_id(self, user_id: uuid.UUID) -> uuid.UUID | None:
         pregnancy = self._pregnancies.get_active_for_user(user_id)
         return pregnancy.id if pregnancy else None

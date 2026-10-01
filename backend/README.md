@@ -19,7 +19,11 @@ cp .env.example .env   # adjust DATABASE_URL; for real SMS set KAVENEGAR_API_KEY
 
 createdb madare_emrooz
 flask db upgrade       # create the schema
+flask create-admin 09121234567 --first-name Ali --last-name Ahmadi   # first admin
 ```
+
+The admin signs in with an SMS code and creates the doctors and midwives in the staff panel
+(`POST /api/v1/admin/staff`). Mothers then choose their midwife in the app.
 
 ## Tests
 

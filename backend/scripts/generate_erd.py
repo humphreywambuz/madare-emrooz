@@ -21,8 +21,10 @@ OUT = BACKEND / "docs" / "erd.svg"
 GROUPS = {
     "identity": ("Identity & access", ["users", "otp_codes", "user_sessions"]),
     "profile": ("Profile & history", ["profiles", "medical_histories"]),
-    "pregnancy": ("Pregnancy care", ["pregnancies", "daily_logs", "medical_documents"]),
-    "staff": ("Staff panel", ["risk_tag_assignments", "staff_notes", "care_approvals"]),
+    "pregnancy": ("Pregnancy care", ["pregnancies", "daily_logs", "medical_documents",
+                                     "document_files", "partner_links"]),
+    "staff": ("Care team", ["staff_profiles", "care_assignments", "alerts",
+                            "risk_tag_assignments", "staff_notes", "care_approvals"]),
     "paths": ("Fitness & rehab paths", ["fitness_profiles", "rehab_profiles"]),
     "audit": ("Audit", ["audit_logs"]),
 }
@@ -32,18 +34,23 @@ SECTION = {
     "medical_histories": "§3", "pregnancies": "§4", "daily_logs": "§5",
     "medical_documents": "§6", "risk_tag_assignments": "§7", "staff_notes": "§7",
     "care_approvals": "§7 §11", "audit_logs": "§8", "fitness_profiles": "§9",
-    "rehab_profiles": "§10 §11",
+    "rehab_profiles": "§10 §11", "document_files": "§6", "partner_links": "§4",
+    "staff_profiles": "§7", "care_assignments": "§7", "alerts": "§5 §7",
 }
-TOP_ROW = ["otp_codes", "user_sessions", "profiles", "medical_histories", "fitness_profiles", "audit_logs"]
-BOTTOM_ROW = ["daily_logs", "pregnancies", "medical_documents", "rehab_profiles",
-              "risk_tag_assignments", "staff_notes", "care_approvals"]
+TOP_ROW = ["otp_codes", "user_sessions", "staff_profiles", "profiles", "medical_histories",
+           "fitness_profiles", "partner_links", "audit_logs"]
+BOTTOM_ROW = ["alerts", "daily_logs", "pregnancies", "medical_documents", "rehab_profiles",
+              "care_assignments", "risk_tag_assignments", "staff_notes", "care_approvals"]
+# Tables drawn under their parent instead of linked to users: child -> (fk column, parent).
+BELOW = {"document_files": ("document_id", "medical_documents")}
 # The FK drawn as the line to users; other user FKs are shown in the rows.
 OWNER_FK = {
     "user_sessions": "user_id", "profiles": "user_id", "medical_histories": "user_id",
     "fitness_profiles": "user_id", "rehab_profiles": "user_id", "pregnancies": "user_id",
     "daily_logs": "patient_id", "medical_documents": "patient_id",
     "risk_tag_assignments": "patient_id", "staff_notes": "patient_id",
-    "care_approvals": "patient_id",
+    "care_approvals": "patient_id", "staff_profiles": "user_id", "partner_links": "user_id",
+    "care_assignments": "patient_id", "alerts": "patient_id",
 }
 LOGICAL = {"otp_codes": "mobile · no FK", "audit_logs": "actor_id, patient_id · no FK"}
 TIMESTAMPS = {"created_at", "updated_at"}
@@ -275,7 +282,7 @@ def build() -> None:
     with app.app_context():
         tables = {t.name: t for t in db.metadata.sorted_tables}
     boxes = {n: Box(t) for n, t in tables.items()}
-    missing = set(boxes) ^ set(TOP_ROW + BOTTOM_ROW + ["users"])
+    missing = set(boxes) ^ set(TOP_ROW + BOTTOM_ROW + list(BELOW) + ["users"])
     if missing:
         sys.exit(f"Place these tables in TOP_ROW/BOTTOM_ROW (or remove them): {sorted(missing)}")
 
@@ -299,7 +306,10 @@ def build() -> None:
     for b in bot:
         b.x, b.y = round(x), y_bot
         x += b.w + GAP
-    height = y_bot + max(b.h for b in bot) + MARGIN
+    for child, (_, parent) in BELOW.items():
+        c, p = boxes[child], boxes[parent]
+        c.x, c.y = round(p.cx - c.w / 2), p.y + p.h + CHANNEL // 2
+    height = max(b.y + b.h for b in boxes.values()) + MARGIN
 
     lines = []
 
@@ -362,13 +372,22 @@ def build() -> None:
     neighbour("daily_logs", "pregnancy_id", "pregnancies")
     neighbour("medical_documents", "pregnancy_id", "pregnancies")
     neighbour("rehab_profiles", "imaging_document_id", "medical_documents")
+    neighbour("alerts", "daily_log_id", "daily_logs")
+
+    for child, (col, parent) in BELOW.items():
+        c, p = boxes[child], boxes[parent]
+        x = round(p.cx)
+        lines.append(f'<path class="rel" d="M{x},{p.y + p.h} V{c.y}"/>')
+        lines.append(one_v(x, c.y, -1, optional=True))  # zero or one file per document
+        lines.append(one_v(x, p.y + p.h, +1))
+        lines.append(f'<text class="rlabel" x="{x + 12}" y="{c.y - 22}">{col}</text>')
 
     svg = [
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" '
         f'width="{width}" height="{height}" role="img" '
         'aria-label="Entity-relationship diagram of the Phase 1 tables. Every table references users; '
-        "daily_logs and medical_documents also reference pregnancies, and rehab_profiles "
-        'references medical_documents.">',
+        "daily_logs and medical_documents also reference pregnancies, rehab_profiles and "
+        "document_files reference medical_documents, and alerts reference daily_logs.\">",
         f"<style>{STYLE}</style>",
         f'<rect class="bg" width="{width}" height="{height}"/>',
         legend(width),

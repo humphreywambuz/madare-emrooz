@@ -3,7 +3,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
-from app.modules.care_team.domain.enums import AlertKind
+from app.modules.care_team.domain.enums import AlertKind, ApprovalScope, RiskTag
 
 
 @dataclass(frozen=True)
@@ -51,3 +51,32 @@ class PatientRow:
     midwife_id: uuid.UUID | None
     open_alerts: int
     last_alert_at: datetime | None
+
+
+@dataclass(frozen=True)
+class NoteView:
+    id: uuid.UUID
+    body: str
+    created_at: datetime
+    author_id: uuid.UUID
+    author_name: str | None
+    author_role: str
+
+
+@dataclass(frozen=True)
+class RiskTagView:
+    tag: RiskTag
+    source: str  # "record": follows from her profile/history; "staff": added by a clinician
+    note: str | None = None
+    added_by_id: uuid.UUID | None = None
+
+
+@dataclass(frozen=True)
+class ApprovalView:
+    id: uuid.UUID
+    scope: ApprovalScope
+    approved_by_id: uuid.UUID
+    approved_at: datetime
+    revoked_at: datetime | None
+    revoked_by_id: uuid.UUID | None
+    is_active: bool

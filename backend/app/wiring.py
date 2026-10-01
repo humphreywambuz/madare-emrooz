@@ -10,14 +10,21 @@ from flask import current_app
 
 from app.extensions import db
 from app.modules.audit.infrastructure.trail import SqlAlchemyAuditTrail
-from app.modules.care_team.application.services import CareTeamService, StaffService
+from app.modules.care_team.application.services import (
+    CareTeamService,
+    ClinicalService,
+    StaffService,
+)
 from app.modules.care_team.domain.enums import AlertKind, ApprovalScope, DoctorPatientScope
+from app.modules.care_team.domain.risk import PatientFacts
 from app.modules.care_team.infrastructure.repositories import (
     SqlAlchemyAlertRepository,
     SqlAlchemyApprovalRepository,
     SqlAlchemyCareAssignmentRepository,
     SqlAlchemyPatientDirectory,
+    SqlAlchemyRiskTagRepository,
     SqlAlchemyStaffDirectory,
+    SqlAlchemyStaffNoteRepository,
     SqlAlchemyStaffProfileRepository,
 )
 from app.modules.documents.application.services import DocumentService
@@ -198,4 +205,32 @@ def partner_service() -> PartnerService:
         audit=SqlAlchemyAuditTrail(session),
         uow=SqlAlchemyUnitOfWork(session),
         secret_key=current_app.config["SECRET_KEY"],
+    )
+
+
+def _patient_facts(patient_id) -> PatientFacts:
+    profiles = profile_service()
+    profile = profiles.find_profile(patient_id)
+    history = profiles.find_medical_history(patient_id)
+    infections = (history.has_hiv, history.has_hepatitis_b, history.has_hepatitis_c) if history else ()
+    return PatientFacts(
+        rh_incompatibility_risk=bool(profile and profile.rh_incompatibility_risk),
+        miscarriage_count=history.miscarriage_count if history else None,
+        has_diabetes=history.has_diabetes if history else None,
+        has_hypertension=history.has_hypertension if history else None,
+        has_thyroid_disorder=history.has_thyroid_disorder if history else None,
+        has_infectious_disease=any(infections) if history else None,
+    )
+
+
+def clinical_service() -> ClinicalService:
+    session = db.session
+    return ClinicalService(
+        access=care_team_service(),
+        notes=SqlAlchemyStaffNoteRepository(session),
+        tags=SqlAlchemyRiskTagRepository(session),
+        approvals=SqlAlchemyApprovalRepository(session),
+        facts=_patient_facts,
+        audit=SqlAlchemyAuditTrail(session),
+        uow=SqlAlchemyUnitOfWork(session),
     )

@@ -2,6 +2,7 @@ import uuid
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.modules.care_team.domain.enums import ApprovalScope, RiskTag
 from app.modules.identity.domain.enums import UserRole
 
 
@@ -28,3 +29,16 @@ class UpdateStaffBody(_Body):
 
 class ChooseMidwifeBody(_Body):
     midwife_id: uuid.UUID
+
+
+class NoteBody(_Body):
+    body: str = Field(min_length=1, max_length=5000)
+
+
+class RiskTagBody(_Body):
+    tag: RiskTag
+    note: str | None = Field(default=None, max_length=255)
+
+
+class ApprovalBody(_Body):
+    scope: ApprovalScope

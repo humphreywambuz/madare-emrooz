@@ -1,12 +1,19 @@
 import uuid
 from typing import Protocol
 
-from app.modules.care_team.domain.entities import Alert, CareAssignment, StaffProfile
-from app.modules.care_team.domain.enums import CareRole
+from app.modules.care_team.domain.entities import (
+    Alert,
+    CareApproval,
+    CareAssignment,
+    RiskTagAssignment,
+    StaffNote,
+    StaffProfile,
+)
+from app.modules.care_team.domain.enums import ApprovalScope, CareRole, RiskTag
 from app.modules.identity.domain.entities import User
 from app.modules.identity.domain.enums import UserRole
 
-from .views import AlertView, MidwifeOption, PatientRow, StaffView
+from .views import AlertView, MidwifeOption, NoteView, PatientRow, StaffView
 
 
 class StaffAccounts(Protocol):
@@ -66,3 +73,29 @@ class PatientDirectory(Protocol):
         self, *, staff_id: uuid.UUID | None = None, role: CareRole | None = None
     ) -> list[PatientRow]:
         """Every mother, or only those assigned to ``staff_id`` in ``role``. Open alerts first."""
+
+
+class StaffNoteRepository(Protocol):
+    def add(self, note: StaffNote) -> None: ...
+
+    def list_for_patient(self, patient_id: uuid.UUID) -> list[NoteView]:
+        """Newest first, with the author's name."""
+
+
+class RiskTagRepository(Protocol):
+    def list_for_patient(self, patient_id: uuid.UUID) -> list[RiskTagAssignment]: ...
+
+    def add(self, assignment: RiskTagAssignment) -> None:
+        """Raises ConflictError if the mother already has this tag."""
+
+    def remove(self, patient_id: uuid.UUID, tag: RiskTag) -> bool: ...
+
+
+class ApprovalRepository(Protocol):
+    def active(self, patient_id: uuid.UUID, scope: ApprovalScope) -> CareApproval | None: ...
+
+    def list_for_patient(self, patient_id: uuid.UUID) -> list[CareApproval]: ...
+
+    def add(self, approval: CareApproval) -> None: ...
+
+    def save(self, approval: CareApproval) -> None: ...

@@ -8,11 +8,19 @@ from sqlalchemy.orm import Session, aliased
 from app.modules.care_team.application.views import (
     AlertView,
     MidwifeOption,
+    NoteView,
     PatientRow,
     StaffView,
 )
-from app.modules.care_team.domain.entities import Alert, CareApproval, CareAssignment, StaffProfile
-from app.modules.care_team.domain.enums import ApprovalScope, CareRole
+from app.modules.care_team.domain.entities import (
+    Alert,
+    CareApproval,
+    CareAssignment,
+    RiskTagAssignment,
+    StaffNote,
+    StaffProfile,
+)
+from app.modules.care_team.domain.enums import ApprovalScope, CareRole, RiskTag
 from app.modules.identity.domain.enums import STAFF_ROLES, UserRole
 from app.shared.domain.errors import ConflictError
 from app.shared.infrastructure.mapping import (
@@ -22,7 +30,14 @@ from app.shared.infrastructure.mapping import (
     to_entity,
 )
 
-from .models import AlertModel, CareApprovalModel, CareAssignmentModel, StaffProfileModel
+from .models import (
+    AlertModel,
+    CareApprovalModel,
+    CareAssignmentModel,
+    RiskTagAssignmentModel,
+    StaffNoteModel,
+    StaffProfileModel,
+)
 
 # Read-only views of other modules' tables, joined by name for the staff panel lists.
 # Writes to them always go through the owning module.
@@ -300,3 +315,65 @@ class SqlAlchemyApprovalRepository:
     def save(self, approval: CareApproval) -> None:
         copy_to_row(approval, self._session.get(CareApprovalModel, approval.id))
         self._session.flush()
+
+
+class SqlAlchemyStaffNoteRepository:
+    def __init__(self, session: Session):
+        self._session = session
+
+    def add(self, note: StaffNote) -> None:
+        row = StaffNoteModel()
+        copy_to_row(note, row)
+        self._session.add(row)
+        self._session.flush()
+
+    def list_for_patient(self, patient_id: uuid.UUID) -> list[NoteView]:
+        query = (
+            sa.select(
+                StaffNoteModel.id, StaffNoteModel.body, StaffNoteModel.created_at,
+                StaffNoteModel.author_id, StaffProfileModel.first_name, StaffProfileModel.last_name,
+                _users.c.role,
+            )
+            .join(_users, _users.c.id == StaffNoteModel.author_id)
+            .outerjoin(StaffProfileModel, StaffProfileModel.user_id == StaffNoteModel.author_id)
+            .where(StaffNoteModel.patient_id == patient_id)
+            .order_by(StaffNoteModel.created_at.desc())
+        )
+        return [
+            NoteView(
+                id=r.id, body=r.body, created_at=r.created_at, author_id=r.author_id,
+                author_name=" ".join(filter(None, (r.first_name, r.last_name))) or None,
+                author_role=r.role,
+            )
+            for r in self._session.execute(query)
+        ]
+
+
+class SqlAlchemyRiskTagRepository:
+    def __init__(self, session: Session):
+        self._session = session
+
+    def list_for_patient(self, patient_id: uuid.UUID) -> list[RiskTagAssignment]:
+        rows = self._session.scalars(
+            sa.select(RiskTagAssignmentModel).where(RiskTagAssignmentModel.patient_id == patient_id)
+        )
+        return [to_entity(RiskTagAssignment, row) for row in rows]
+
+    def add(self, assignment: RiskTagAssignment) -> None:
+        row = RiskTagAssignmentModel()
+        copy_to_row(assignment, row)
+        try:
+            with self._session.begin_nested():
+                self._session.add(row)
+        except IntegrityError as exc:
+            if constraint_name(exc) == "uq_risk_tag_per_patient":
+                raise ConflictError("This tag is already on her summary card.") from exc
+            raise
+
+    def remove(self, patient_id: uuid.UUID, tag: RiskTag) -> bool:
+        result = self._session.execute(
+            sa.delete(RiskTagAssignmentModel).where(
+                RiskTagAssignmentModel.patient_id == patient_id, RiskTagAssignmentModel.tag == tag
+            )
+        )
+        return result.rowcount > 0

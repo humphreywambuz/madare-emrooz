@@ -119,3 +119,11 @@ def test_create_admin_command(app, client):
     )
     assert result.exit_code == 0, result.output
     assert "+989121112233" in result.output
+
+
+def test_staff_names_cannot_be_cleared(client, signed_in):
+    _, admin = signed_in(UserRole.ADMIN)
+    staff = create_staff(client, admin)
+    url = f"/api/v1/admin/staff/{staff['user_id']}"
+    assert client.patch(url, json={"first_name": None}, headers=admin).status_code == 422
+    assert client.patch(url, json={"bio": None, "is_listed": False}, headers=admin).get_json()["is_listed"] is False
