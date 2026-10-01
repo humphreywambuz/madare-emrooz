@@ -2,6 +2,10 @@ import re
 
 from app.shared.domain.errors import ValidationError
 
+# How mobiles are stored: +98 followed by a 10-digit number starting with 9.
+# Also enforced by CHECK constraints on users.mobile and otp_codes.mobile.
+IRANIAN_MOBILE_PATTERN = r"^\+989[0-9]{9}$"
+
 # Persian (U+06F0..) and Arabic-Indic (U+0660..) digits, as typed on Iranian keyboards.
 _TO_ASCII_DIGITS = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
 _SEPARATORS = re.compile(r"[\s\-().]")

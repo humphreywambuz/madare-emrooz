@@ -8,6 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import db
 from app.modules.identity.domain.enums import STAFF_ROLES, UserRole
+from app.modules.identity.domain.mobile import IRANIAN_MOBILE_PATTERN
 from app.shared.infrastructure.orm import (
     CreatedAtMixin,
     TimestampMixin,
@@ -19,8 +20,8 @@ from app.shared.infrastructure.orm import (
 class UserModel(UUIDPrimaryKeyMixin, TimestampMixin, db.Model):
     __tablename__ = "users"
     __table_args__ = (
-        # E.164 format, e.g. +989121234567
-        sa.CheckConstraint(r"mobile ~ '^\+[1-9][0-9]{7,14}$'", name="mobile_e164"),
+        # Iranian mobile in international form, e.g. +989121234567
+        sa.CheckConstraint(f"mobile ~ '{IRANIAN_MOBILE_PATTERN}'", name="mobile_iranian"),
     )
 
     mobile: Mapped[str] = mapped_column(sa.String(16), unique=True)
@@ -54,6 +55,7 @@ class OtpCodeModel(UUIDPrimaryKeyMixin, CreatedAtMixin, db.Model):
         sa.Index("ix_otp_codes_mobile_created_at", "mobile", "created_at"),
         sa.Index("ix_otp_codes_request_ip_created_at", "request_ip", "created_at"),
         sa.CheckConstraint("attempts >= 0", name="attempts_non_negative"),
+        sa.CheckConstraint(f"mobile ~ '{IRANIAN_MOBILE_PATTERN}'", name="mobile_iranian"),
     )
 
     mobile: Mapped[str] = mapped_column(sa.String(16))

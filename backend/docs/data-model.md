@@ -38,8 +38,11 @@ python scripts/generate_erd.py
 ## Tables
 
 ### 1. `users`, `otp_codes`, `user_sessions`
-- `users.mobile` is unique and stored in E.164 format (`+989121234567`), which a CHECK constraint
-  enforces.
+- `users.mobile` is unique and stored as an Iranian mobile in international form: `+98` followed by
+  10 digits starting with 9 (`+989121234567`). A CHECK constraint on `users.mobile` and
+  `otp_codes.mobile` enforces this, so a number in local form (`0912…`) or from another country can't
+  be saved even if the app has a bug. The pattern is defined once, in
+  `identity/domain/mobile.py` (`IRANIAN_MOBILE_PATTERN`).
 - `users.role` is one of `user`, `doctor`, `midwife` or `admin`. Access level follows from the role.
 - `otp_codes` is keyed by mobile number, because the user may not exist before their first login.
   It stores only a **hash** of the code, together with its expiry, the number of attempts, when
@@ -136,6 +139,12 @@ python scripts/generate_erd.py
 - Patient-owned data uses `ON DELETE CASCADE` to its patient. References to staff members
   (`recorded_by_id`, `approved_by_id`, …) use the default `RESTRICT`, so staff accounts should be
   deactivated (`is_active = false`) rather than deleted.
+- `tests/test_data_rules.py` checks the data rules and delete behaviour listed in the Phase 1 data
+  dictionary against PostgreSQL:
+  - deleting a mother removes all her data but keeps `audit_logs`;
+  - staff with records can't be deleted;
+  - deleting a pregnancy or document clears the links to it;
+  - only `+98` mobiles are stored.
 
 ## Redis
 Phase 1 does not need Redis to store any data. When the auth endpoints are built, it is a good fit

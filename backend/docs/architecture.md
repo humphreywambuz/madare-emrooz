@@ -156,7 +156,7 @@ the account, so there is no separate sign-up.
 Protections:
 
 - **Phone numbers** are accepted in any common format, including Persian digits, and stored as
-  E.164 (`+989121234567`).
+  E.164 (`+989121234567`). The database only accepts Iranian mobiles in this form.
 - **Codes** are stored only as an HMAC keyed with `SECRET_KEY`, expire after 2 minutes, work once,
   and lock after 5 wrong tries. Requesting a new code replaces the old one.
 - **Sending limits:** one code per number per minute, 5 per number per hour and 20 per network per
