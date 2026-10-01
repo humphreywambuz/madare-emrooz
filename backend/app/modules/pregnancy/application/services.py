@@ -55,10 +55,12 @@ class PregnancyService:
         pregnancies: PregnancyRepository,
         uow: UnitOfWork,
         today: Callable[[], date] = date.today,
+        on_delivered: Callable[[uuid.UUID], None] | None = None,
     ):
         self._pregnancies = pregnancies
         self._uow = uow
         self._today = today
+        self._on_delivered = on_delivered
 
     def start(self, command: StartPregnancy) -> PregnancyView:
         if self._pregnancies.get_active_for_user(command.user_id) is not None:
@@ -86,6 +88,8 @@ class PregnancyService:
         today = self._today()
         pregnancy.end(status=status, on=today)
         self._pregnancies.save(pregnancy)
+        if status is PregnancyStatus.DELIVERED and self._on_delivered:
+            self._on_delivered(user_id)  # in the same transaction
         self._uow.commit()
         return PregnancyView.of(pregnancy, today)
 

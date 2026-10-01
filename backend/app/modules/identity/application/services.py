@@ -20,6 +20,7 @@ from app.modules.identity.domain.secrets import (
     new_refresh_token,
     otp_code_matches,
 )
+from app.shared.application.context import RequestContext
 from app.shared.application.unit_of_work import UnitOfWork
 from app.shared.domain.errors import (
     AuthenticationError,
@@ -64,12 +65,6 @@ class SignedIn:
     user_id: uuid.UUID
     role: str
     is_new_user: bool
-
-
-@dataclass(frozen=True)
-class RequestContext:
-    ip_address: str | None = None
-    user_agent: str | None = None
 
 
 @dataclass(frozen=True)

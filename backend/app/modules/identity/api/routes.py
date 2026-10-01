@@ -5,27 +5,16 @@
 3. POST /auth/token/refresh {refresh_token}  -> new tokens (old refresh token stops working)
 4. POST /auth/logout       {refresh_token}   -> session ended
 """
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify
 
-from app.modules.identity.application.services import RequestContext, SignedIn
+from app.modules.identity.application.services import SignedIn
 from app.shared.api.auth import current_user, login_required
+from app.shared.api.http import parse_body, request_context
 from app.wiring import auth_service
 
 from .schemas import OtpRequestBody, OtpVerifyBody, RefreshTokenBody
 
 bp = Blueprint("identity", __name__, url_prefix="/api/v1")
-
-
-def _body(schema):
-    return schema.model_validate(request.get_json(silent=True) or {})
-
-
-def _context() -> RequestContext:
-    user_agent = request.user_agent.string or None
-    return RequestContext(
-        ip_address=request.remote_addr,
-        user_agent=user_agent[:500] if user_agent else None,
-    )
 
 
 def _tokens(result: SignedIn) -> dict:
@@ -42,8 +31,8 @@ def _tokens(result: SignedIn) -> dict:
 
 @bp.post("/auth/otp/request")
 def request_otp():
-    body = _body(OtpRequestBody)
-    sent = auth_service().request_otp(body.mobile, _context())
+    body = parse_body(OtpRequestBody)
+    sent = auth_service().request_otp(body.mobile, request_context())
     return jsonify(
         mobile=sent.mobile,
         expires_in=sent.expires_in_seconds,
@@ -53,19 +42,19 @@ def request_otp():
 
 @bp.post("/auth/otp/verify")
 def verify_otp():
-    body = _body(OtpVerifyBody)
-    return jsonify(_tokens(auth_service().verify_otp(body.mobile, body.code, _context())))
+    body = parse_body(OtpVerifyBody)
+    return jsonify(_tokens(auth_service().verify_otp(body.mobile, body.code, request_context())))
 
 
 @bp.post("/auth/token/refresh")
 def refresh_token():
-    body = _body(RefreshTokenBody)
-    return jsonify(_tokens(auth_service().refresh(body.refresh_token, _context())))
+    body = parse_body(RefreshTokenBody)
+    return jsonify(_tokens(auth_service().refresh(body.refresh_token, request_context())))
 
 
 @bp.post("/auth/logout")
 def logout():
-    auth_service().logout(_body(RefreshTokenBody).refresh_token)
+    auth_service().logout(parse_body(RefreshTokenBody).refresh_token)
     return "", 204
 
 

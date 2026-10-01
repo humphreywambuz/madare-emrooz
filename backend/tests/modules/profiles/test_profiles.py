@@ -36,3 +36,12 @@ def test_profile_and_medical_history(session, make_user):
     assert profile.rh_incompatibility_risk is True
     assert profile.age == age_on(date(1995, 6, 15), date.today())
     assert history.has_hypertension is None  # not answered
+
+
+def test_national_code_check_digit():
+    from app.modules.profiles.domain.rules import is_valid_national_code
+
+    assert is_valid_national_code("0012345679")
+    assert not is_valid_national_code("0012345678")
+    assert not is_valid_national_code("123")
+    assert not is_valid_national_code("0000000000")

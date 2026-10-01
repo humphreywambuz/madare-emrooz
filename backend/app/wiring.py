@@ -22,6 +22,11 @@ from app.modules.identity.infrastructure.sms import (
     KavenegarSmsSender,
 )
 from app.modules.pregnancy.application.services import PregnancyService
+from app.modules.profiles.application.services import ProfileService
+from app.modules.profiles.infrastructure.repositories import (
+    SqlAlchemyMedicalHistoryRepository,
+    SqlAlchemyProfileRepository,
+)
 from app.modules.pregnancy.infrastructure.repository import SqlAlchemyPregnancyRepository
 from app.shared.api.auth import token_service
 from app.shared.infrastructure.unit_of_work import SqlAlchemyUnitOfWork
@@ -68,7 +73,20 @@ def auth_service() -> AuthService:
     )
 
 
+def profile_service() -> ProfileService:
+    session = db.session
+    return ProfileService(
+        SqlAlchemyProfileRepository(session),
+        SqlAlchemyMedicalHistoryRepository(session),
+        SqlAlchemyAuditTrail(session),
+        SqlAlchemyUnitOfWork(session),
+    )
+
+
 def pregnancy_service() -> PregnancyService:
     return PregnancyService(
-        SqlAlchemyPregnancyRepository(db.session), SqlAlchemyUnitOfWork(db.session)
+        SqlAlchemyPregnancyRepository(db.session),
+        SqlAlchemyUnitOfWork(db.session),
+        # A birth switches her home to the postpartum paths (fitness and rehabilitation).
+        on_delivered=profile_service().record_delivery,
     )
