@@ -16,7 +16,11 @@ from app.modules.identity.infrastructure.repositories import (
     SqlAlchemySessionRepository,
     SqlAlchemyUserRepository,
 )
-from app.modules.identity.infrastructure.sms import ConsoleSmsSender, InMemorySmsSender
+from app.modules.identity.infrastructure.sms import (
+    ConsoleSmsSender,
+    InMemorySmsSender,
+    KavenegarSmsSender,
+)
 from app.modules.pregnancy.application.services import PregnancyService
 from app.modules.pregnancy.infrastructure.repository import SqlAlchemyPregnancyRepository
 from app.shared.api.auth import token_service
@@ -24,11 +28,15 @@ from app.shared.infrastructure.unit_of_work import SqlAlchemyUnitOfWork
 
 
 def sms_sender():
-    backend = current_app.config["SMS_BACKEND"]
+    c = current_app.config
+    backend = c["SMS_BACKEND"]
+    if backend == "kavenegar":
+        return KavenegarSmsSender(c["KAVENEGAR_API_KEY"], c["KAVENEGAR_OTP_TEMPLATE"])
     if backend == "console":
-        return ConsoleSmsSender()
+        return ConsoleSmsSender(c["OTP_SMS_TEMPLATE"])
     if backend == "memory":
-        return InMemorySmsSender(current_app.extensions.setdefault("sms_outbox", []))
+        outbox = current_app.extensions.setdefault("sms_outbox", [])
+        return InMemorySmsSender(outbox, c["OTP_SMS_TEMPLATE"])
     raise RuntimeError(f"Unknown SMS_BACKEND {backend!r}")
 
 
@@ -40,7 +48,6 @@ def otp_policy() -> OtpPolicy:
         max_per_mobile_per_hour=c["OTP_MAX_PER_MOBILE_PER_HOUR"],
         max_per_ip_per_hour=c["OTP_MAX_PER_IP_PER_HOUR"],
         max_attempts=c["OTP_MAX_ATTEMPTS"],
-        sms_template=c["OTP_SMS_TEMPLATE"],
     )
 
 

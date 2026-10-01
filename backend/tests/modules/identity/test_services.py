@@ -4,8 +4,14 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from app.modules.audit.domain.enums import AuditEventType
+from app.modules.identity.application.ports import SmsDeliveryError
 from app.modules.identity.application.services import AuthService, OtpPolicy, RequestContext
-from app.shared.domain.errors import AuthenticationError, RateLimitedError, ValidationError
+from app.shared.domain.errors import (
+    AuthenticationError,
+    RateLimitedError,
+    ServiceUnavailableError,
+    ValidationError,
+)
 
 MOBILE = "09121234567"
 E164 = "+989121234567"
@@ -44,6 +50,9 @@ class Users(Repo):
 
 
 class Otps(Repo):
+    def discard(self, challenge):
+        del self.items[challenge.id]
+
     def latest_for_mobile(self, mobile):
         mine = [c for c in self.items.values() if c.mobile == mobile]
         return max(mine, key=lambda c: c.created_at, default=None)
@@ -63,13 +72,16 @@ class Sessions(Repo):
 class Sms:
     def __init__(self):
         self.sent = []
+        self.failing = False
 
-    def send(self, mobile, message):
-        self.sent.append((mobile, message))
+    def send_login_code(self, mobile, code):
+        if self.failing:
+            raise SmsDeliveryError("gateway down")
+        self.sent.append((mobile, code))
 
     @property
     def last_code(self):
-        return self.sent[-1][1].split()[-1]
+        return self.sent[-1][1]
 
 
 class Tokens:
@@ -122,8 +134,7 @@ def sign_in(env, mobile=MOBILE):
 def test_request_sends_a_six_digit_code_and_stores_only_its_hash(env):
     sent = env.service.request_otp(MOBILE, CTX)
     assert sent.mobile == E164
-    (mobile, message), = env.sms.sent
-    code = env.sms.last_code
+    (mobile, code), = env.sms.sent
     assert mobile == E164 and len(code) == 6 and code.isdigit()
     (challenge,) = env.otps.items.values()
     assert code not in challenge.code_hash
@@ -271,3 +282,15 @@ def test_logout_ends_the_session(env):
     with pytest.raises(AuthenticationError):
         env.service.refresh(result.refresh_token, CTX)
     env.service.logout("unknown-token")  # no error either way
+
+
+def test_a_code_that_could_not_be_sent_is_forgotten(env):
+    env.sms.failing = True
+    with pytest.raises(ServiceUnavailableError):
+        env.service.request_otp(MOBILE, CTX)
+    assert env.otps.items == {}
+
+    # The failed attempt doesn't trigger the resend cooldown.
+    env.sms.failing = False
+    env.service.request_otp(MOBILE, CTX)
+    assert len(env.sms.sent) == 1

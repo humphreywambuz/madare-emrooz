@@ -13,13 +13,17 @@ class Config:
     ACCESS_TOKEN_TTL_SECONDS = int(os.environ.get("ACCESS_TOKEN_TTL_SECONDS", 15 * 60))
     REFRESH_TOKEN_TTL_DAYS = int(os.environ.get("REFRESH_TOKEN_TTL_DAYS", 30))
 
-    # "console" logs codes instead of sending them (development only).
+    # "kavenegar" sends real SMS. "console" logs codes instead (development only).
     SMS_BACKEND = os.environ.get("SMS_BACKEND", "console")
+    KAVENEGAR_API_KEY = os.environ.get("KAVENEGAR_API_KEY", "")
+    # Verify template defined in the Kavenegar panel; its text contains %token.
+    KAVENEGAR_OTP_TEMPLATE = os.environ.get("KAVENEGAR_OTP_TEMPLATE", "madareemrooz-otp")
     OTP_CODE_TTL_SECONDS = int(os.environ.get("OTP_CODE_TTL_SECONDS", 120))
     OTP_RESEND_COOLDOWN_SECONDS = int(os.environ.get("OTP_RESEND_COOLDOWN_SECONDS", 60))
     OTP_MAX_PER_MOBILE_PER_HOUR = int(os.environ.get("OTP_MAX_PER_MOBILE_PER_HOUR", 5))
     OTP_MAX_PER_IP_PER_HOUR = int(os.environ.get("OTP_MAX_PER_IP_PER_HOUR", 20))
     OTP_MAX_ATTEMPTS = int(os.environ.get("OTP_MAX_ATTEMPTS", 5))
+    # Message text for the console and memory backends; Kavenegar uses its own template.
     OTP_SMS_TEMPLATE = os.environ.get("OTP_SMS_TEMPLATE", "کد ورود شما: {code}")
 
 

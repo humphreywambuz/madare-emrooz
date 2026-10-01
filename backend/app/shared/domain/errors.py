@@ -35,6 +35,12 @@ class PermissionDeniedError(DomainError):
     code = "permission_denied"
 
 
+class ServiceUnavailableError(DomainError):
+    """A service we depend on (e.g. the SMS gateway) failed; the client can retry."""
+
+    code = "service_unavailable"
+
+
 class RateLimitedError(DomainError):
     """Too many attempts; ``retry_after_seconds`` tells the client when to try again."""
 

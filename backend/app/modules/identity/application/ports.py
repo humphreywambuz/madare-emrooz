@@ -24,6 +24,8 @@ class OtpRepository(Protocol):
 
     def add(self, challenge: OtpChallenge) -> None: ...
 
+    def discard(self, challenge: OtpChallenge) -> None: ...
+
     def save(self, challenge: OtpChallenge) -> None: ...
 
 
@@ -35,8 +37,13 @@ class SessionRepository(Protocol):
     def save(self, session: Session) -> None: ...
 
 
+class SmsDeliveryError(Exception):
+    """Raised by an SmsSender when the provider did not accept the message."""
+
+
 class SmsSender(Protocol):
-    def send(self, mobile: str, message: str) -> None: ...
+    def send_login_code(self, mobile: str, code: str) -> None:
+        """Send a sign-in code to ``mobile`` (+989…). Raises SmsDeliveryError on failure."""
 
 
 class AccessTokenIssuer(Protocol):

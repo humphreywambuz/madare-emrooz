@@ -139,6 +139,7 @@ turned into JSON by `shared/api/errors.py`:
 | `AuthenticationError` | 401 |
 | `PermissionDeniedError` | 403 |
 | `RateLimitedError` (with a `Retry-After` header) | 429 |
+| `ServiceUnavailableError` (e.g. SMS gateway down) | 503 |
 
 ## Authentication
 
@@ -166,8 +167,17 @@ Protections:
 - **Audit log:** every successful and failed sign-in is written to `audit_logs`.
 - **Refresh tokens** are stored only as a SHA-256 hash and replaced on every use.
 
-`SMS_BACKEND=console` (the development default) writes the code to the server log instead of
-sending it. Production needs a real SMS provider behind the same `SmsSender` port.
+**SMS.** `SMS_BACKEND` picks the `SmsSender` adapter (`identity/infrastructure/sms.py`):
+
+| `SMS_BACKEND` | What happens |
+|---|---|
+| `kavenegar` | Sends the code with Kavenegar's Verify Lookup API, using the template named in `KAVENEGAR_OTP_TEMPLATE` (its text, with `%token`, is defined in the Kavenegar panel). Needs `KAVENEGAR_API_KEY`; the app refuses to start without it. Mothers and staff use the same template. |
+| `console` | Development default: writes the code to the server log instead of sending it. |
+| `memory` | Tests: keeps messages in a list. |
+
+If Kavenegar rejects the message or can't be reached, the code is deleted (so it doesn't count
+towards the sending limits) and the API returns 503 `service_unavailable`. The API key is part of
+Kavenegar's URL, so the adapter never logs the URL.
 
 `shared/infrastructure/tokens.py` signs and verifies access tokens (`itsdangerous`, lifetime set by
 `ACCESS_TOKEN_TTL_SECONDS`). `login_required` and `roles_required("doctor", …)` in
@@ -176,7 +186,7 @@ also checks that the account still exists and is active (a check registered by t
 in `create_app`), so deactivating a user takes effect immediately rather than when the token
 expires. Responses serialise dates as ISO 8601 (`shared/api/json.py`).
 
-Not built yet: password sign-in for staff, and moving the rate-limit counters to Redis. Behind a
+Not built yet: moving the rate-limit counters to Redis. Behind a
 reverse proxy, also configure Werkzeug's `ProxyFix` so `request.remote_addr` is the client's IP.
 
 ## Testing by layer

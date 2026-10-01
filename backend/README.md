@@ -15,7 +15,7 @@ Flask + PostgreSQL backend.
 cd backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt
-cp .env.example .env   # adjust DATABASE_URL
+cp .env.example .env   # adjust DATABASE_URL; for real SMS set KAVENEGAR_API_KEY and SMS_BACKEND=kavenegar
 
 createdb madare_emrooz
 flask db upgrade       # create the schema

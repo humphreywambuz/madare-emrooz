@@ -96,6 +96,9 @@ class SqlAlchemyOtpRepository:
         _copy(challenge, self._session.get(OtpCodeModel, challenge.id), _OTP_FIELDS)
         self._session.flush()
 
+    def discard(self, challenge: OtpChallenge) -> None:
+        self._session.execute(sa.delete(OtpCodeModel).where(OtpCodeModel.id == challenge.id))
+
 
 class SqlAlchemySessionRepository:
     def __init__(self, session: OrmSession):

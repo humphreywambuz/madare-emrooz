@@ -8,6 +8,7 @@ from app.shared.domain.errors import (
     NotFoundError,
     PermissionDeniedError,
     RateLimitedError,
+    ServiceUnavailableError,
     ValidationError,
 )
 
@@ -18,6 +19,7 @@ _STATUS = {
     AuthenticationError: 401,
     PermissionDeniedError: 403,
     RateLimitedError: 429,
+    ServiceUnavailableError: 503,
 }
 
 

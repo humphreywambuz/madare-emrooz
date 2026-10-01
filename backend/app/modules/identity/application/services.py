@@ -25,6 +25,7 @@ from app.shared.domain.errors import (
     AuthenticationError,
     NotFoundError,
     RateLimitedError,
+    ServiceUnavailableError,
     ValidationError,
 )
 
@@ -32,6 +33,7 @@ from .ports import (
     AccessTokenIssuer,
     OtpRepository,
     SessionRepository,
+    SmsDeliveryError,
     SmsSender,
     UserRepository,
 )
@@ -44,7 +46,6 @@ class OtpPolicy:
     max_per_mobile_per_hour: int = 5
     max_per_ip_per_hour: int = 20
     max_attempts: int = 5
-    sms_template: str = "کد ورود شما: {code}"
 
 
 @dataclass(frozen=True)
@@ -136,7 +137,15 @@ class AuthService:
         self._otps.add(challenge)
         self._uow.commit()
         # Send after committing: a code the user receives must exist in the database.
-        self._sms.send(mobile, self._policy.sms_template.format(code=code))
+        try:
+            self._sms.send_login_code(mobile, code)
+        except SmsDeliveryError:
+            # Forget the unsent code so it doesn't count towards the resend limits.
+            self._otps.discard(challenge)
+            self._uow.commit()
+            raise ServiceUnavailableError(
+                "We couldn't send the code. Please try again in a moment."
+            ) from None
         return OtpRequested(
             mobile=mobile,
             expires_in_seconds=self._policy.code_ttl_seconds,

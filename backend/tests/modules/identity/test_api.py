@@ -95,6 +95,22 @@ def test_resend_too_soon_is_rate_limited(client):
     assert 0 < int(response.headers["Retry-After"]) <= 60
 
 
+def test_sms_gateway_failure_returns_503_and_keeps_no_code(app, client, monkeypatch):
+    from app import wiring
+    from app.modules.identity.application.ports import SmsDeliveryError
+
+    class Down:
+        def send_login_code(self, mobile, code):
+            raise SmsDeliveryError("down")
+
+    monkeypatch.setattr(wiring, "sms_sender", Down)
+    response = client.post("/api/v1/auth/otp/request", json={"mobile": MOBILE})
+    assert response.status_code == 503
+    assert response.get_json()["error"]["code"] == "service_unavailable"
+    db.session.remove()
+    assert db.session.scalar(sa.select(sa.func.count()).select_from(OtpCodeModel)) == 0
+
+
 def test_invalid_input(client):
     bad_mobile = client.post("/api/v1/auth/otp/request", json={"mobile": "12345"})
     assert bad_mobile.status_code == 422
