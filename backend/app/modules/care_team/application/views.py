@@ -80,3 +80,11 @@ class ApprovalView:
     revoked_at: datetime | None
     revoked_by_id: uuid.UUID | None
     is_active: bool
+
+
+@dataclass(frozen=True)
+class PatientPage:
+    items: list[PatientRow]
+    page: int
+    per_page: int
+    total: int

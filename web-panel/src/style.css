@@ -1,0 +1,37 @@
+@import "tailwindcss";
+@plugin "daisyui" {
+  themes: light --default, dark --prefersdark;
+}
+
+/* Brand colours: a calm clinical teal, and a clear red for alerts. */
+@plugin "daisyui/theme" {
+  name: "light";
+  default: true;
+  --color-primary: oklch(52% 0.09 185);
+  --color-primary-content: oklch(98% 0.01 185);
+  --color-error: oklch(58% 0.2 25);
+  --color-base-100: oklch(99% 0.003 185);
+  --color-base-200: oklch(96.5% 0.006 185);
+  --color-base-300: oklch(91% 0.01 185);
+}
+
+@plugin "daisyui/theme" {
+  name: "dark";
+  prefersdark: true;
+  --color-primary: oklch(74% 0.1 182);
+  --color-primary-content: oklch(20% 0.03 185);
+  --color-error: oklch(68% 0.18 25);
+  --color-base-100: oklch(22% 0.012 185);
+  --color-base-200: oklch(19% 0.012 185);
+  --color-base-300: oklch(30% 0.014 185);
+}
+
+@theme {
+  --font-sans: "Vazirmatn Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+html { font-feature-settings: "ss01"; }
+/* The current page in the side menu, in the brand colour. */
+.menu :where(li) > .menu-active { background-color: var(--color-primary); color: var(--color-primary-content); }
+/* Phone numbers, codes and national IDs read left to right even in Persian text. */
+.ltr { direction: ltr; unicode-bidi: isolate; }

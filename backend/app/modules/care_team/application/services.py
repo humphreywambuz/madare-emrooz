@@ -26,6 +26,7 @@ from app.modules.care_team.domain.enums import (
 )
 from app.modules.care_team.domain.policies import alert_goes_to_admins, can_open_record
 from app.modules.care_team.domain.risk import PatientFacts, derive_risk_tags
+from app.modules.care_team.domain.search import parse_patient_search
 from app.modules.identity.domain.enums import UserRole
 from app.shared.application.access import PatientAccess
 from app.shared.application.context import Actor
@@ -53,7 +54,7 @@ from .views import (
     ApprovalView,
     MidwifeOption,
     NoteView,
-    PatientRow,
+    PatientPage,
     RiskTagView,
     StaffView,
 )
@@ -132,6 +133,12 @@ class StaffService:
         )
         self._uow.commit()
         return self._directory.get_staff(user_id)
+
+    def get_staff(self, user_id: uuid.UUID) -> StaffView:
+        staff = self._directory.get_staff(user_id)
+        if staff is None:
+            raise NotFoundError("Staff member not found.")
+        return staff
 
     def list_staff(self) -> list[StaffView]:
         return self._directory.list_staff()
@@ -251,20 +258,49 @@ class CareTeamService:
         assignment = self._assignments.active_for_patient(patient_id, CareRole.MIDWIFE)
         return assignment.staff_id if assignment else None
 
-    def list_patients(self, actor: Actor) -> list[PatientRow]:
+    def list_patients(
+        self, actor: Actor, *, query: str | None = None, page: int = 1, per_page: int = 20
+    ) -> PatientPage:
+        """Her own mothers for a midwife; every mother (Phase 1) or their own (Phase 2) for a
+        doctor. ``query`` matches a name, mobile number or national code."""
         if actor.role == UserRole.MIDWIFE:
-            return self._patients.list_patients(staff_id=actor.user_id, role=CareRole.MIDWIFE)
-        if actor.role == UserRole.DOCTOR:
-            if self._doctor_scope is DoctorPatientScope.ALL:
-                return self._patients.list_patients()
-            return self._patients.list_patients(staff_id=actor.user_id, role=CareRole.DOCTOR)
-        raise PermissionDeniedError("Only doctors and midwives have a patient list.")
+            scope = {"staff_id": actor.user_id, "role": CareRole.MIDWIFE}
+        elif actor.role == UserRole.DOCTOR:
+            scope = (
+                {} if self._doctor_scope is DoctorPatientScope.ALL
+                else {"staff_id": actor.user_id, "role": CareRole.DOCTOR}
+            )
+        else:
+            raise PermissionDeniedError("Only doctors and midwives have a patient list.")
+        rows, total = self._patients.list_patients(
+            **scope, search=parse_patient_search(query), page=page, per_page=per_page
+        )
+        return PatientPage(rows, page, per_page, total)
 
     # --- alerts ------------------------------------------------------------------
 
-    def raise_alert(self, patient_id: uuid.UUID, kind: AlertKind, daily_log_id: uuid.UUID) -> None:
-        """Called by the monitoring module; the caller's unit of work commits."""
-        self._alerts.add(Alert(patient_id, kind, created_at=self._now(), daily_log_id=daily_log_id))
+    def raise_alert(self, actor: Actor, kind: AlertKind, daily_log_id: uuid.UUID) -> None:
+        """Called by the monitoring module when the mother (``actor``) reports a red flag; the
+        caller's unit of work commits.
+
+        The audit log records the event, its time, the mother, the cause and who was notified
+        (proposal §14).
+        """
+        alert = Alert(actor.user_id, kind, created_at=self._now(), daily_log_id=daily_log_id)
+        self._alerts.add(alert)
+        midwife_id = self.midwife_of(actor.user_id)
+        notified = (
+            {"role": "admins"}
+            if alert_goes_to_admins(midwife_id)
+            else {"role": "midwife", "user_id": str(midwife_id)}
+        )
+        self._audit.record(
+            _audit_event(
+                AuditEventType.ALERT_RAISED, actor, patient_id=actor.user_id,
+                resource_type="alert", resource_id=alert.id,
+                details={"cause": kind.value, "daily_log_id": str(daily_log_id), "notified": notified},
+            )
+        )
 
     def alert_inbox(self, actor: Actor) -> list[AlertView]:
         """A midwife sees her mothers' alerts; admins see alerts from mothers with no midwife."""

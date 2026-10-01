@@ -141,3 +141,23 @@ def test_unknown_patient_is_404(client, signed_in):
     _, midwife = listed_midwife(client, signed_in)
     response = client.get(f"/api/v1/staff/patients/{uuid.uuid4()}/daily-logs", headers=midwife)
     assert response.status_code == 404
+
+
+def test_raised_alerts_are_audited_with_cause_and_who_was_notified(client, signed_in):
+    _, mother_without_midwife = pregnant_mother(client, signed_in)
+    midwife_id, _ = listed_midwife(client, signed_in)
+    mother_id, mother = pregnant_mother(client, signed_in, midwife_id)
+    client.post("/api/v1/daily-logs", json={"has_spotting_or_bleeding": True}, headers=mother_without_midwife)
+    client.post("/api/v1/daily-logs", json={"has_spotting_or_bleeding": True}, headers=mother)
+    client.post("/api/v1/daily-logs", json={"has_spotting_or_bleeding": False}, headers=mother)
+
+    raised = db.session.scalars(
+        sa.select(AuditLogModel).where(AuditLogModel.event_type == "alert_raised").order_by(AuditLogModel.id)
+    ).all()
+    assert len(raised) == 2
+    to_admins, to_midwife = raised
+    assert to_admins.details["notified"] == {"role": "admins"}
+    assert to_midwife.details["notified"] == {"role": "midwife", "user_id": str(midwife_id)}
+    assert to_midwife.details["cause"] == "bleeding" and to_midwife.details["daily_log_id"]
+    assert to_midwife.actor_id == mother_id == to_midwife.patient_id
+    assert to_midwife.created_at is not None and to_midwife.resource_type == "alert"

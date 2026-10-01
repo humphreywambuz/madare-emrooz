@@ -25,6 +25,8 @@ _FIELDS = (
     "care_provider_name",
     "status",
     "ended_on",
+    "due_date_corrected_at",
+    "due_date_corrected_by_id",
 )
 
 

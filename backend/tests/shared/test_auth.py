@@ -21,3 +21,10 @@ def test_token_for_unknown_user_is_rejected(app, client):
     token = AccessTokenService(app.config["SECRET_KEY"], 60).issue(uuid.uuid4(), "user")
     response = client.get(URL, headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 401
+
+
+def test_unknown_api_urls_answer_in_json(client):
+    missing = client.get("/api/v1/nothing-here")
+    assert missing.status_code == 404 and missing.get_json()["error"]["code"] == "not_found"
+    wrong_method = client.delete("/api/v1/auth/otp/request")
+    assert wrong_method.status_code == 405 and wrong_method.get_json()["error"]["code"] == "method_not_allowed"

@@ -11,5 +11,8 @@ class DocumentRepository(Protocol):
 
     def content(self, document_id: uuid.UUID) -> bytes: ...
 
+    def delete(self, document_id: uuid.UUID) -> None:
+        """Remove the document and its file."""
+
     def list_for_patient(self, patient_id: uuid.UUID) -> list[MedicalDocument]:
         """Newest first."""

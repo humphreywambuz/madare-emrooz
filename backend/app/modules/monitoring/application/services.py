@@ -28,7 +28,7 @@ class MonitoringService:
         *,
         logs: DailyLogRepository,
         active_pregnancy_id: Callable[[uuid.UUID], uuid.UUID | None],
-        on_bleeding: Callable[[uuid.UUID, uuid.UUID], None],
+        on_bleeding: Callable[[Actor, uuid.UUID], None],
         access: PatientAccess,
         audit: AuditTrail,
         uow: UnitOfWork,
@@ -57,7 +57,7 @@ class MonitoringService:
         )
         self._logs.add(log)
         if log.is_red_alert:
-            self._on_bleeding(actor.user_id, log.id)
+            self._on_bleeding(actor, log.id)
         self._uow.commit()
         return log
 

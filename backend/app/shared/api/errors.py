@@ -1,6 +1,6 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from pydantic import ValidationError as PydanticValidationError
-from werkzeug.exceptions import RequestEntityTooLarge
+from werkzeug.exceptions import HTTPException, RequestEntityTooLarge
 
 from app.shared.domain.errors import (
     AuthenticationError,
@@ -39,6 +39,15 @@ def register_error_handlers(app: Flask) -> None:
         if isinstance(error, RateLimitedError):
             headers["Retry-After"] = str(error.retry_after_seconds)
         return jsonify(body), _status_for(error), headers
+
+    @app.errorhandler(HTTPException)
+    def handle_http_error(error: HTTPException):
+        """Unknown URLs and wrong methods answer in JSON like every other API error."""
+        if not request.path.startswith("/api/"):
+            return error
+        code = {404: "not_found", 405: "method_not_allowed"}.get(error.code, "http_error")
+        body = {"error": {"code": code, "message": error.description, "details": {}}}
+        return jsonify(body), error.code
 
     @app.errorhandler(RequestEntityTooLarge)
     def handle_too_large(error: RequestEntityTooLarge):

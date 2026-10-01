@@ -30,6 +30,12 @@ class SqlAlchemyDocumentRepository:
             sa.select(DocumentFileModel.content).where(DocumentFileModel.document_id == document_id)
         )
 
+    def delete(self, document_id: uuid.UUID) -> None:
+        # document_files goes with it (ON DELETE CASCADE); a rehab imaging link becomes NULL.
+        self._session.execute(
+            sa.delete(MedicalDocumentModel).where(MedicalDocumentModel.id == document_id)
+        )
+
     def list_for_patient(self, patient_id: uuid.UUID) -> list[MedicalDocument]:
         rows = self._session.scalars(
             sa.select(MedicalDocumentModel)

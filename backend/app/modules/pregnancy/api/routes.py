@@ -13,11 +13,16 @@ from app.modules.identity.domain.enums import UserRole
 from app.modules.pregnancy.application.services import StartPregnancy
 from app.shared.api.auth import current_user, login_required, roles_required
 from app.shared.api.http import current_actor, parse_body, request_context
-from app.shared.domain.errors import NotFoundError
+from app.shared.domain.errors import NotFoundError, ValidationError
 from app.shared.domain.jalali import format_jalali, persian_digits
 from app.wiring import partner_service, pregnancy_service as _service
 
-from .schemas import EndPregnancyRequest, StartPregnancyRequest
+from .schemas import (
+    CorrectDueDateRequest,
+    CorrectPregnancyRequest,
+    EndPregnancyRequest,
+    StartPregnancyRequest,
+)
 
 bp = Blueprint("pregnancy", __name__)
 
@@ -36,6 +41,26 @@ def start_pregnancy():
 @login_required
 def get_current_pregnancy():
     return jsonify(asdict(_service().get_active(current_user().user_id)))
+
+
+@bp.patch("/api/v1/pregnancies/current")
+@roles_required(UserRole.USER)
+def correct_current_pregnancy():
+    """Fix a wrong LMP, cycle length, conception type or care provider."""
+    changes = parse_body(CorrectPregnancyRequest).model_dump(exclude_unset=True)
+    nulls = sorted(k for k, v in changes.items() if v is None and k not in ("care_provider_type", "care_provider_name"))
+    if nulls:
+        raise ValidationError("These fields can't be empty.", details={"fields": nulls})
+    return jsonify(asdict(_service().correct(current_actor(), changes)))
+
+
+@bp.put("/api/v1/staff/patients/<uuid:patient_id>/pregnancy/due-date")
+@roles_required(UserRole.MIDWIFE, UserRole.DOCTOR)
+def correct_due_date(patient_id):
+    """Her care team sets the due date, e.g. from an ultrasound."""
+    body = parse_body(CorrectDueDateRequest)
+    view = _service().correct_due_date(current_actor(), patient_id, body.estimated_due_date, body.reason)
+    return jsonify(asdict(view))
 
 
 @bp.post("/api/v1/pregnancies/current/end")

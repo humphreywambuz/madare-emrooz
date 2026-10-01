@@ -208,19 +208,22 @@ All paths start with `/api/v1` except the partner page. "Mother" is an app user 
 | Anyone | `POST /auth/otp/request`, `/auth/otp/verify`, `/auth/token/refresh`, `/auth/logout` |
 | Signed in | `GET /me` |
 | Mother: onboarding | `GET/PUT /profile` (404 = new user; `home` says which screen to open), `GET/PUT /medical-history` |
-| Mother: pregnancy | `POST /pregnancies`, `GET /pregnancies/current`, `POST /pregnancies/current/end`, `POST/GET /daily-logs` (bleeding only) |
+| Mother: pregnancy | `POST /pregnancies`, `GET/PATCH /pregnancies/current` (PATCH corrects her LMP, cycle, conception or care provider), `POST /pregnancies/current/end`, `POST/GET /daily-logs` (bleeding only) |
 | Mother: partner QR | `POST/GET/DELETE /partner-link` |
 | Mother: midwife | `GET /midwives`, `GET/PUT /my-midwife` |
 | Mother: other paths | `GET/PUT /fitness-profile`, `GET/PUT /rehab-profile` |
 | Mother: documents | `GET /documents`, `GET /documents/<id>/file` |
 | Spouse (no sign-in) | `GET /p/<token>` (Persian page), `GET /partner/<token>` (JSON) |
-| Midwife and doctor | `GET /staff/patients`, and under `/staff/patients/<id>`: `summary`, `record`, `daily-logs` (GET), `documents` (GET), `documents/<doc>/file`, `notes` (POST), `risk-tags` (POST, DELETE `/<tag>`), `fitness-profile/specialist-visit`, `rehab-profile/specialist-visit` |
-| Midwife only | `GET /staff/alerts`, `POST /staff/patients/<id>/daily-logs`, `POST /staff/patients/<id>/documents` (multipart), `PUT /staff/patients/<id>/rehab-profile/imaging` |
+| Staff | `GET /staff/me` |
+| Midwife and doctor | `GET /staff/patients?q=&page=&per_page=` (search by name, mobile or national code; 20 per page, at most 100), and under `/staff/patients/<id>`: `summary`, `record`, `daily-logs` (GET), `documents` (GET), `documents/<doc>/file`, `notes` (POST), `risk-tags` (POST, DELETE `/<tag>`), `fitness-profile/specialist-visit`, `rehab-profile/specialist-visit`, `pregnancy/due-date` (PUT, e.g. after an ultrasound) |
+| Midwife only | `GET /staff/alerts`, `POST /staff/patients/<id>/daily-logs`, `POST /staff/patients/<id>/documents` (multipart), `DELETE /staff/patients/<id>/documents/<doc>` (optional `{"reason"}`), `PUT /staff/patients/<id>/rehab-profile/imaging` |
 | Doctor only | `POST /staff/patients/<id>/approvals`, `DELETE /staff/patients/<id>/approvals/<scope>` |
 | Admin | `POST/GET /admin/staff`, `PATCH /admin/staff/<id>`, `GET /admin/unassigned-alerts` |
 | Midwife or admin | `POST /staff/alerts/<id>/seen` |
 
 The first admin is created on the server with `flask create-admin 0912… --first-name … --last-name …`.
+
+A Postman collection with every endpoint is in `docs/postman/` (see `scripts/generate_postman.py`).
 
 ### Who sees which mother
 
