@@ -11,7 +11,7 @@ from flask import current_app
 from app.extensions import db
 from app.modules.audit.infrastructure.trail import SqlAlchemyAuditTrail
 from app.modules.care_team.application.services import CareTeamService, StaffService
-from app.modules.care_team.domain.enums import DoctorPatientScope
+from app.modules.care_team.domain.enums import AlertKind, DoctorPatientScope
 from app.modules.care_team.infrastructure.repositories import (
     SqlAlchemyAlertRepository,
     SqlAlchemyCareAssignmentRepository,
@@ -19,6 +19,8 @@ from app.modules.care_team.infrastructure.repositories import (
     SqlAlchemyStaffDirectory,
     SqlAlchemyStaffProfileRepository,
 )
+from app.modules.documents.application.services import DocumentService
+from app.modules.documents.infrastructure.repositories import SqlAlchemyDocumentRepository
 from app.modules.identity.application.services import AuthService, OtpPolicy, UserAccounts
 from app.modules.identity.infrastructure.repositories import (
     SqlAlchemyOtpRepository,
@@ -30,6 +32,8 @@ from app.modules.identity.infrastructure.sms import (
     InMemorySmsSender,
     KavenegarSmsSender,
 )
+from app.modules.monitoring.application.services import MonitoringService
+from app.modules.monitoring.infrastructure.repositories import SqlAlchemyDailyLogRepository
 from app.modules.pregnancy.application.services import PregnancyService
 from app.modules.profiles.application.services import ProfileService
 from app.modules.profiles.infrastructure.repositories import (
@@ -122,4 +126,31 @@ def care_team_service() -> CareTeamService:
         audit=SqlAlchemyAuditTrail(session),
         uow=SqlAlchemyUnitOfWork(session),
         doctor_scope=DoctorPatientScope(current_app.config["DOCTOR_PATIENT_SCOPE"]),
+    )
+
+
+def monitoring_service() -> MonitoringService:
+    session = db.session
+    care_team = care_team_service()
+    return MonitoringService(
+        logs=SqlAlchemyDailyLogRepository(session),
+        active_pregnancy_id=pregnancy_service().active_pregnancy_id,
+        on_bleeding=lambda patient_id, log_id: care_team.raise_alert(
+            patient_id, AlertKind.BLEEDING, log_id
+        ),
+        access=care_team,
+        audit=SqlAlchemyAuditTrail(session),
+        uow=SqlAlchemyUnitOfWork(session),
+    )
+
+
+def document_service() -> DocumentService:
+    session = db.session
+    return DocumentService(
+        documents=SqlAlchemyDocumentRepository(session),
+        active_pregnancy_id=pregnancy_service().active_pregnancy_id,
+        access=care_team_service(),
+        audit=SqlAlchemyAuditTrail(session),
+        uow=SqlAlchemyUnitOfWork(session),
+        max_file_bytes=current_app.config["DOCUMENT_MAX_BYTES"],
     )

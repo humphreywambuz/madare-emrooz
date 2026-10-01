@@ -51,7 +51,8 @@ def document(patient, uploader, **extra):
 @pytest.fixture()
 def mother_with_everything(session, make_user):
     """A mother with a row in every table that belongs to her. She recorded one
-    daily log and uploaded one document herself, as the app allows."""
+    daily log herself (a bleeding report); the database also allows her as a document's
+    uploader, although the app lets only her midwife upload."""
     mother = make_user()
     doctor = make_user(UserRole.DOCTOR)
     midwife = make_user(UserRole.MIDWIFE)

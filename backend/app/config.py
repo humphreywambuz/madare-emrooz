@@ -22,6 +22,10 @@ class Config:
     OTP_RESEND_COOLDOWN_SECONDS = int(os.environ.get("OTP_RESEND_COOLDOWN_SECONDS", 60))
     OTP_MAX_PER_MOBILE_PER_HOUR = int(os.environ.get("OTP_MAX_PER_MOBILE_PER_HOUR", 5))
     OTP_MAX_PER_IP_PER_HOUR = int(os.environ.get("OTP_MAX_PER_IP_PER_HOUR", 20))
+    # Medical documents (JPEG, PNG or PDF) are stored in PostgreSQL.
+    DOCUMENT_MAX_BYTES = int(os.environ.get("DOCUMENT_MAX_BYTES", 10 * 1024 * 1024))
+    # Requests larger than this are refused before they are read (413).
+    MAX_CONTENT_LENGTH = DOCUMENT_MAX_BYTES + 1024 * 1024
     # "all" in Phase 1: doctors see every mother. "assigned" in Phase 2, once mothers
     # choose their gynecologist / referring doctor.
     DOCTOR_PATIENT_SCOPE = os.environ.get("DOCTOR_PATIENT_SCOPE", "all")

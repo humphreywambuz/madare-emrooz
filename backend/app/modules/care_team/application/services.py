@@ -202,11 +202,13 @@ class CareTeamService:
         if not self._can_open(actor, patient_id):
             self._deny(actor, patient_id, "record")
 
-    def record_viewed(self, actor: Actor, patient_id: uuid.UUID, resource: str) -> None:
+    def record_viewed(
+        self, actor: Actor, patient_id: uuid.UUID, resource: str, resource_id: object = None
+    ) -> None:
         self._audit.record(
             _audit_event(
                 AuditEventType.RECORD_VIEWED, actor, patient_id=patient_id,
-                resource_type=resource, resource_id=patient_id,
+                resource_type=resource, resource_id=resource_id or patient_id,
             )
         )
         self._uow.commit()

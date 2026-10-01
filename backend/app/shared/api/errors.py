@@ -1,5 +1,6 @@
 from flask import Flask, jsonify
 from pydantic import ValidationError as PydanticValidationError
+from werkzeug.exceptions import RequestEntityTooLarge
 
 from app.shared.domain.errors import (
     AuthenticationError,
@@ -38,6 +39,11 @@ def register_error_handlers(app: Flask) -> None:
         if isinstance(error, RateLimitedError):
             headers["Retry-After"] = str(error.retry_after_seconds)
         return jsonify(body), _status_for(error), headers
+
+    @app.errorhandler(RequestEntityTooLarge)
+    def handle_too_large(error: RequestEntityTooLarge):
+        body = {"error": {"code": "too_large", "message": "The upload is too large.", "details": {}}}
+        return jsonify(body), 413
 
     @app.errorhandler(PydanticValidationError)
     def handle_request_validation(error: PydanticValidationError):

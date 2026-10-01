@@ -93,6 +93,10 @@ class PregnancyService:
         self._uow.commit()
         return PregnancyView.of(pregnancy, today)
 
+    def active_pregnancy_id(self, user_id: uuid.UUID) -> uuid.UUID | None:
+        pregnancy = self._pregnancies.get_active_for_user(user_id)
+        return pregnancy.id if pregnancy else None
+
     def _require_active(self, user_id: uuid.UUID) -> Pregnancy:
         pregnancy = self._pregnancies.get_active_for_user(user_id)
         if pregnancy is None:
