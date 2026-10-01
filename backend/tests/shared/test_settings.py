@@ -46,3 +46,21 @@ def test_trusted_proxy_count_reads_the_forwarded_address():
         # Without a trusted proxy the header is ignored, so clients can't fake their address.
         seen = c.get("/_ip", environ_base={"REMOTE_ADDR": "198.51.100.1"}, headers={"X-Forwarded-For": "203.0.113.7"})
         assert seen.get_data(as_text=True) == "198.51.100.1"
+
+
+def test_health_reports_the_database(client):
+    response = client.get("/api/v1/health")
+    assert response.status_code == 200 and response.get_json() == {"status": "ok", "database": "ok"}
+
+
+def test_health_is_503_without_a_database():
+    class NoDatabase(TestConfig):
+        SQLALCHEMY_DATABASE_URI = "postgresql+psycopg://nobody:wrong@127.0.0.1:1/none"
+
+    app = create_app(NoDatabase)
+    response = app.test_client().get("/api/v1/health")
+    assert response.status_code == 503 and response.get_json()["database"] == "unreachable"
+    from app.extensions import db
+
+    with app.app_context():
+        db.engine.dispose()

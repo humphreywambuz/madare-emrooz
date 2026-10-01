@@ -1,0 +1,29 @@
+# Run the backend test suite in Docker against a throwaway PostgreSQL:
+#   docker compose -f docker-compose.test.yml run --rm --build tests
+#   docker compose -f docker-compose.test.yml down -v
+name: madare-emrooz-test
+
+services:
+  test-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: madare_emrooz_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d madare_emrooz_test"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  tests:
+    build:
+      context: ./backend
+      target: test
+    environment:
+      TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@test-db:5432/madare_emrooz_test
+    depends_on:
+      test-db:
+        condition: service_healthy

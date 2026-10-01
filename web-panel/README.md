@@ -47,6 +47,13 @@ npm run build             # type-checks, then writes dist/
 the partner QR page) going to Flask and every other path falling back to `index.html` (the panel
 uses HTML5 history routes such as `/patients/<id>`).
 
+## Docker
+
+`Dockerfile` builds the panel and serves it with nginx (`nginx.conf.template`). nginx also forwards
+`/api/` and `/p/` to `BACKEND_URL` (default `http://backend:5000`), allows 12 MB uploads, sets
+security headers, caches `/assets/` for a year and answers its own API errors (413, 502–504) in the
+backend's JSON format. The root `docker-compose.yml` runs it on port 8080.
+
 ## Checks
 
 ```bash

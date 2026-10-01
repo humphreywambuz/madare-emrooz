@@ -209,6 +209,29 @@
             },
             "description": "The signed-in account: id, mobile, role."
           }
+        },
+        {
+          "id": "4b97a227-7535-507a-9a9d-e5e3890a1918",
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "health"
+              ]
+            },
+            "description": "200 when the API can reach its database, 503 otherwise. For load balancers.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
         }
       ],
       "auth": {

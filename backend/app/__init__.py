@@ -29,6 +29,9 @@ def create_app(config_class: type[Config] = Config) -> Flask:
 
     register_models()
     register_blueprints(app)
+    from .shared.api.health import bp as health_bp
+
+    app.register_blueprint(health_bp)
     register_error_handlers(app)
     register_user_status_check(app, is_user_active)
 

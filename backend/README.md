@@ -9,7 +9,14 @@ Flask + PostgreSQL backend.
 - [`docs/proposal-review.md`](docs/proposal-review.md): what the product proposal asks for, how the
   backend maps onto it, and the open questions.
 
-## Setup
+## Docker
+
+The quickest way to run everything (database, API and web panel) is Docker Compose from the
+repository root; see the [root README](../README.md#quick-start-with-docker). This folder's
+`Dockerfile` builds the API image (`--target runtime`, gunicorn, non-root) and an image with the
+test suite (`--target test`, used by `docker-compose.test.yml`).
+
+## Setup without Docker
 
 ```bash
 cd backend
