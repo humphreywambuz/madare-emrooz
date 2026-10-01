@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 from app.modules.audit.application.trail import AuditEvent, AuditTrail
 from app.modules.audit.domain.enums import AuditEventType
 from app.modules.identity.domain.entities import OtpChallenge, Session, User
+from app.modules.identity.domain.enums import STAFF_ROLES, UserRole
 from app.modules.identity.domain.mobile import normalize_iranian_mobile, to_ascii_digits
 from app.modules.identity.domain.secrets import (
     hash_otp_code,
@@ -24,6 +25,7 @@ from app.shared.application.context import RequestContext
 from app.shared.application.unit_of_work import UnitOfWork
 from app.shared.domain.errors import (
     AuthenticationError,
+    ConflictError,
     NotFoundError,
     RateLimitedError,
     ServiceUnavailableError,
@@ -304,3 +306,33 @@ class AuthService:
             role=user.role.value,
             is_new_user=is_new_user,
         )
+
+
+class UserAccounts:
+    """Account management used by other modules (e.g. admins creating staff).
+
+    Methods don't commit: they run inside the calling use case's unit of work.
+    """
+
+    def __init__(self, users: UserRepository):
+        self._users = users
+
+    def create_staff(self, raw_mobile: str, role: UserRole) -> uuid.UUID:
+        if role not in STAFF_ROLES:
+            raise ValidationError("Staff accounts are for doctors, midwives and admins.")
+        mobile = normalize_iranian_mobile(raw_mobile)
+        if self._users.get_by_mobile(mobile) is not None:
+            raise ConflictError("This mobile number already has an account.")
+        user = User(mobile=mobile, role=role)
+        self._users.add(user)
+        return user.id
+
+    def get(self, user_id: uuid.UUID) -> User | None:
+        return self._users.get(user_id)
+
+    def set_active(self, user_id: uuid.UUID, active: bool) -> None:
+        user = self._users.get(user_id)
+        if user is None:
+            raise NotFoundError("Account not found.")
+        user.is_active = active
+        self._users.save(user)

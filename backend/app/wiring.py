@@ -10,7 +10,16 @@ from flask import current_app
 
 from app.extensions import db
 from app.modules.audit.infrastructure.trail import SqlAlchemyAuditTrail
-from app.modules.identity.application.services import AuthService, OtpPolicy
+from app.modules.care_team.application.services import CareTeamService, StaffService
+from app.modules.care_team.domain.enums import DoctorPatientScope
+from app.modules.care_team.infrastructure.repositories import (
+    SqlAlchemyAlertRepository,
+    SqlAlchemyCareAssignmentRepository,
+    SqlAlchemyPatientDirectory,
+    SqlAlchemyStaffDirectory,
+    SqlAlchemyStaffProfileRepository,
+)
+from app.modules.identity.application.services import AuthService, OtpPolicy, UserAccounts
 from app.modules.identity.infrastructure.repositories import (
     SqlAlchemyOtpRepository,
     SqlAlchemySessionRepository,
@@ -89,4 +98,28 @@ def pregnancy_service() -> PregnancyService:
         SqlAlchemyUnitOfWork(db.session),
         # A birth switches her home to the postpartum paths (fitness and rehabilitation).
         on_delivered=profile_service().record_delivery,
+    )
+
+
+def staff_service() -> StaffService:
+    session = db.session
+    return StaffService(
+        accounts=UserAccounts(SqlAlchemyUserRepository(session)),
+        profiles=SqlAlchemyStaffProfileRepository(session),
+        directory=SqlAlchemyStaffDirectory(session),
+        assignments=SqlAlchemyCareAssignmentRepository(session),
+        audit=SqlAlchemyAuditTrail(session),
+        uow=SqlAlchemyUnitOfWork(session),
+    )
+
+
+def care_team_service() -> CareTeamService:
+    session = db.session
+    return CareTeamService(
+        assignments=SqlAlchemyCareAssignmentRepository(session),
+        alerts=SqlAlchemyAlertRepository(session),
+        patients=SqlAlchemyPatientDirectory(session),
+        audit=SqlAlchemyAuditTrail(session),
+        uow=SqlAlchemyUnitOfWork(session),
+        doctor_scope=DoctorPatientScope(current_app.config["DOCTOR_PATIENT_SCOPE"]),
     )

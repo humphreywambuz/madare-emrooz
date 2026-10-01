@@ -30,4 +30,8 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     register_error_handlers(app)
     register_user_status_check(app, is_user_active)
 
+    from .cli import register_commands
+
+    register_commands(app)
+
     return app

@@ -22,6 +22,9 @@ class Config:
     OTP_RESEND_COOLDOWN_SECONDS = int(os.environ.get("OTP_RESEND_COOLDOWN_SECONDS", 60))
     OTP_MAX_PER_MOBILE_PER_HOUR = int(os.environ.get("OTP_MAX_PER_MOBILE_PER_HOUR", 5))
     OTP_MAX_PER_IP_PER_HOUR = int(os.environ.get("OTP_MAX_PER_IP_PER_HOUR", 20))
+    # "all" in Phase 1: doctors see every mother. "assigned" in Phase 2, once mothers
+    # choose their gynecologist / referring doctor.
+    DOCTOR_PATIENT_SCOPE = os.environ.get("DOCTOR_PATIENT_SCOPE", "all")
     OTP_MAX_ATTEMPTS = int(os.environ.get("OTP_MAX_ATTEMPTS", 5))
     # Message text for the console and memory backends; Kavenegar uses its own template.
     OTP_SMS_TEMPLATE = os.environ.get("OTP_SMS_TEMPLATE", "کد ورود شما: {code}")
