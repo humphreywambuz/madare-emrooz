@@ -90,7 +90,9 @@ def sign_in(prefix: str, mobile_var: str) -> list[dict]:
         ep("POST", "/api/v1/auth/logout", "Log out", auth=None,
            body={"refresh_token": f"{{{{{prefix}RefreshToken}}}}"}, doc="204; this device's session ends."),
         ep("GET", "/api/v1/me", "Me", doc="The signed-in account: id, mobile, role."),
-    ]
+    ] + ([ep("GET", "/api/v1/health", "Health", auth=None,
+             doc="200 when the API can reach its database, 503 otherwise. For load balancers.")]
+         if prefix == "mother" else [])
 
 
 LMP_EXAMPLE = "2026-05-01"

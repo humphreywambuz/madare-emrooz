@@ -1,0 +1,60 @@
+# Madare Emrooz: PostgreSQL + API + staff web panel.
+#   cp .env.example .env      # then set SECRET_KEY (and the Kavenegar settings for real SMS)
+#   docker compose up -d --build
+#   open http://localhost:8080
+name: madare-emrooz
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-madare_emrooz}
+      POSTGRES_USER: ${POSTGRES_USER:-madare}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      target: runtime
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-madare}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-madare_emrooz}
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
+      SMS_BACKEND: ${SMS_BACKEND:-console}
+      KAVENEGAR_API_KEY: ${KAVENEGAR_API_KEY:-}
+      KAVENEGAR_OTP_TEMPLATE: ${KAVENEGAR_OTP_TEMPLATE:-madareemrooz-otp}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
+      DOCTOR_PATIENT_SCOPE: ${DOCTOR_PATIENT_SCOPE:-all}
+      # The web container's nginx sits in front of the API. Add one per extra proxy
+      # (e.g. 2 behind a load balancer that also sets X-Forwarded-For).
+      TRUSTED_PROXY_COUNT: ${TRUSTED_PROXY_COUNT:-1}
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-3}
+      RUN_MIGRATIONS: "1"
+    depends_on:
+      db:
+        condition: service_healthy
+    expose:
+      - "5000"
+
+  web:
+    build:
+      context: ./web-panel
+    restart: unless-stopped
+    environment:
+      BACKEND_URL: http://backend:5000
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  db-data:

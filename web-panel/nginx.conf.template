@@ -1,0 +1,68 @@
+# ${BACKEND_URL} is filled in from the environment when the container starts.
+server {
+    listen 80;
+    server_name _;
+    root /usr/share/nginx/html;
+
+    # Medical documents are up to 10 MB; leave room for the form fields.
+    client_max_body_size 12m;
+
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "same-origin" always;
+
+    # Errors nginx itself produces for the API answer in the backend's JSON format, so the panel
+    # and the app can show a proper message.
+    location @too_large {
+        default_type application/json;
+        return 413 '{"error":{"code":"too_large","message":"The upload is too large.","details":{}}}';
+    }
+    location @api_down {
+        default_type application/json;
+        return 503 '{"error":{"code":"service_unavailable","message":"The service is not responding. Try again in a moment.","details":{}}}';
+    }
+
+    # The API and the partner QR page are served by Flask.
+    location /api/ {
+        error_page 413 = @too_large;
+        error_page 502 503 504 = @api_down;
+        proxy_intercept_errors off;
+        proxy_pass ${BACKEND_URL};
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $http_host;
+        proxy_read_timeout 60s;
+    }
+
+    location /p/ {
+        proxy_pass ${BACKEND_URL};
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $http_host;
+    }
+
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    # Built files have content hashes in their names, so they can be cached for good.
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        try_files $uri =404;
+    }
+
+    # Every other path is a page of the single-page app (e.g. /patients/<id>).
+    location / {
+        add_header Cache-Control "no-cache" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header Referrer-Policy "same-origin" always;
+        try_files $uri $uri/ /index.html;
+    }
+}
