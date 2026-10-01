@@ -1,12 +1,14 @@
-"""Section 7: medical staff panel (summary-card tags, notes, approvals)."""
+"""Section 7: medical staff panel (staff profiles, assignments, alerts, summary-card tags,
+notes, approvals)."""
 import uuid
 from datetime import datetime
+
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.extensions import db
-from app.modules.care_team.domain.enums import ApprovalScope, RiskTag
+from app.modules.care_team.domain.enums import AlertKind, ApprovalScope, CareRole, RiskTag
 from app.shared.infrastructure.orm import (
     CreatedAtMixin,
     TimestampMixin,
@@ -79,3 +81,73 @@ class CareApprovalModel(UUIDPrimaryKeyMixin, CreatedAtMixin, db.Model):
     @property
     def is_active(self) -> bool:
         return self.revoked_at is None
+
+
+class StaffProfileModel(TimestampMixin, db.Model):
+    """Name and bio of a doctor, midwife or admin. The account (mobile, role) is in ``users``."""
+
+    __tablename__ = "staff_profiles"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    first_name: Mapped[str] = mapped_column(sa.String(100))
+    last_name: Mapped[str] = mapped_column(sa.String(100))
+    bio: Mapped[str | None] = mapped_column(sa.Text)
+    # Listed midwives appear in the app for mothers to choose from.
+    is_listed: Mapped[bool] = mapped_column(default=True, server_default=sa.true())
+
+
+class CareAssignmentModel(UUIDPrimaryKeyMixin, CreatedAtMixin, db.Model):
+    """The staff member a mother chose for a role: her midwife now, her doctor in Phase 2.
+
+    Changing midwife ends the old row (``ended_at``) so the history is kept; a partial
+    unique index allows one active assignment per mother and role.
+    """
+
+    __tablename__ = "care_assignments"
+    __table_args__ = (
+        sa.Index(
+            "uq_care_assignments_one_active_per_role",
+            "patient_id",
+            "care_role",
+            unique=True,
+            postgresql_where=sa.text("ended_at IS NULL"),
+        ),
+        sa.Index(
+            "ix_care_assignments_active_staff",
+            "staff_id",
+            "care_role",
+            postgresql_where=sa.text("ended_at IS NULL"),
+        ),
+    )
+
+    patient_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE")
+    )
+    staff_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), sa.ForeignKey("users.id"))
+    care_role: Mapped[CareRole] = mapped_column(enum_column(CareRole))
+    started_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True))
+    ended_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
+
+
+class AlertModel(UUIDPrimaryKeyMixin, CreatedAtMixin, db.Model):
+    """A red alert, e.g. the mother reported bleeding. It is shown to her midwife, or to
+    the admins while she has none, until someone marks it as seen."""
+
+    __tablename__ = "alerts"
+    __table_args__ = (
+        sa.Index("ix_alerts_open", "patient_id", postgresql_where=sa.text("seen_at IS NULL")),
+    )
+
+    patient_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE")
+    )
+    kind: Mapped[AlertKind] = mapped_column(enum_column(AlertKind))
+    daily_log_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), sa.ForeignKey("daily_logs.id", ondelete="CASCADE")
+    )
+    seen_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
+    seen_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), sa.ForeignKey("users.id")
+    )

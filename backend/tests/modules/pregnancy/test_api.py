@@ -56,3 +56,27 @@ def test_validation_errors(client, signed_in):
         "/api/v1/pregnancies", json={"lmp_date": future, "conception_type": "natural"}, headers=headers
     )
     assert bad_rule.status_code == 422
+
+
+def test_dates_are_returned_as_iso_8601(client, signed_in):
+    _, headers = signed_in()
+    body = client.post(
+        "/api/v1/pregnancies", json={"lmp_date": LMP, "conception_type": "natural"}, headers=headers
+    ).get_json()
+    assert body["lmp_date"] == LMP
+    assert date.fromisoformat(body["estimated_due_date"]) == date.fromisoformat(LMP) + timedelta(days=280)
+
+
+def test_concurrent_duplicate_start_is_a_conflict(client, signed_in, monkeypatch):
+    """Two requests can both pass the 'already active?' check; the database
+    constraint then rejects the second insert, which must surface as 409, not 500."""
+    from app.modules.pregnancy.infrastructure.repository import SqlAlchemyPregnancyRepository
+
+    _, headers = signed_in()
+    payload = {"lmp_date": LMP, "conception_type": "natural"}
+    assert client.post("/api/v1/pregnancies", json=payload, headers=headers).status_code == 201
+
+    monkeypatch.setattr(SqlAlchemyPregnancyRepository, "get_active_for_user", lambda self, user_id: None)
+    response = client.post("/api/v1/pregnancies", json=payload, headers=headers)
+    assert response.status_code == 409
+    assert response.get_json()["error"]["code"] == "conflict"

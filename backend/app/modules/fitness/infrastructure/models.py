@@ -1,5 +1,6 @@
 """Section 9: fitness & daily sport path (option B)."""
 import uuid
+from datetime import datetime
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
@@ -20,3 +21,9 @@ class FitnessProfileModel(TimestampMixin, db.Model):
     )
     goal: Mapped[FitnessGoal] = mapped_column(enum_column(FitnessGoal))
     goal_note: Mapped[str | None] = mapped_column(sa.Text)
+
+    # The fitness dashboard opens after a specialist visit, which staff record.
+    specialist_visit_completed: Mapped[bool] = mapped_column(
+        default=False, server_default=sa.false()
+    )
+    specialist_visit_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))

@@ -33,3 +33,19 @@ class AuthenticationError(DomainError):
 
 class PermissionDeniedError(DomainError):
     code = "permission_denied"
+
+
+class ServiceUnavailableError(DomainError):
+    """A service we depend on (e.g. the SMS gateway) failed; the client can retry."""
+
+    code = "service_unavailable"
+
+
+class RateLimitedError(DomainError):
+    """Too many attempts; ``retry_after_seconds`` tells the client when to try again."""
+
+    code = "rate_limited"
+
+    def __init__(self, message: str, *, retry_after_seconds: int):
+        super().__init__(message, details={"retry_after_seconds": retry_after_seconds})
+        self.retry_after_seconds = retry_after_seconds

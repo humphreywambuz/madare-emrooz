@@ -26,3 +26,13 @@ class JoinGoal(StrEnum):
     PREGNANCY = "pregnancy"
     FITNESS = "fitness"
     REHABILITATION = "rehabilitation"
+
+
+class HomePath(StrEnum):
+    """Which home screen the app opens after sign-in."""
+
+    PREGNANCY = "pregnancy"
+    TRYING_TO_CONCEIVE = "trying_to_conceive"  # simple page until later phases
+    POSTPARTUM = "postpartum"  # offers the fitness and postpartum rehabilitation paths
+    FITNESS = "fitness"
+    REHABILITATION = "rehabilitation"

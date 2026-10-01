@@ -1,6 +1,6 @@
 """Section 1: user auth & role tables."""
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import INET, UUID
@@ -8,6 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import db
 from app.modules.identity.domain.enums import STAFF_ROLES, UserRole
+from app.modules.identity.domain.mobile import IRANIAN_MOBILE_PATTERN
 from app.shared.infrastructure.orm import (
     CreatedAtMixin,
     TimestampMixin,
@@ -19,8 +20,8 @@ from app.shared.infrastructure.orm import (
 class UserModel(UUIDPrimaryKeyMixin, TimestampMixin, db.Model):
     __tablename__ = "users"
     __table_args__ = (
-        # E.164 format, e.g. +989121234567
-        sa.CheckConstraint(r"mobile ~ '^\+[1-9][0-9]{7,14}$'", name="mobile_e164"),
+        # Iranian mobile in international form, e.g. +989121234567
+        sa.CheckConstraint(f"mobile ~ '{IRANIAN_MOBILE_PATTERN}'", name="mobile_iranian"),
     )
 
     mobile: Mapped[str] = mapped_column(sa.String(16), unique=True)
@@ -52,18 +53,18 @@ class OtpCodeModel(UUIDPrimaryKeyMixin, CreatedAtMixin, db.Model):
     __tablename__ = "otp_codes"
     __table_args__ = (
         sa.Index("ix_otp_codes_mobile_created_at", "mobile", "created_at"),
+        sa.Index("ix_otp_codes_request_ip_created_at", "request_ip", "created_at"),
         sa.CheckConstraint("attempts >= 0", name="attempts_non_negative"),
+        sa.CheckConstraint(f"mobile ~ '{IRANIAN_MOBILE_PATTERN}'", name="mobile_iranian"),
     )
 
     mobile: Mapped[str] = mapped_column(sa.String(16))
+    # Used to limit how many codes one network can request (SMS abuse).
+    request_ip: Mapped[str | None] = mapped_column(INET)
     code_hash: Mapped[str] = mapped_column(sa.String(255))
     expires_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True))
     attempts: Mapped[int] = mapped_column(sa.SmallInteger, default=0, server_default="0")
     consumed_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
-
-    @property
-    def is_usable(self) -> bool:
-        return self.consumed_at is None and self.expires_at > datetime.now(timezone.utc)
 
 
 class UserSessionModel(UUIDPrimaryKeyMixin, CreatedAtMixin, db.Model):
@@ -82,7 +83,3 @@ class UserSessionModel(UUIDPrimaryKeyMixin, CreatedAtMixin, db.Model):
     revoked_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
 
     user: Mapped[UserModel] = relationship(back_populates="sessions")
-
-    @property
-    def is_active(self) -> bool:
-        return self.revoked_at is None and self.expires_at > datetime.now(timezone.utc)

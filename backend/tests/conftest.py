@@ -51,6 +51,7 @@ def make_user(session):
 @pytest.fixture()
 def client(app):
     """HTTP client for API tests. Requests commit, so tables are emptied afterwards."""
+    app.extensions.setdefault("sms_outbox", []).clear()
     yield app.test_client()
     _db.session.remove()
     tables = ", ".join(t.name for t in _db.metadata.sorted_tables)
@@ -66,7 +67,11 @@ def signed_in(app, client):
         user = UserModel(mobile=f"+98935{uuid.uuid4().int % 10**7:07d}", role=role)
         _db.session.add(user)
         _db.session.commit()
-        token = AccessTokenService(app.config["SECRET_KEY"], 60).issue(user.id, role.value)
-        return user.id, {"Authorization": f"Bearer {token}"}
+        return user.id, auth_headers(app, user.id, role)
 
     return _signed_in
+
+
+def auth_headers(app, user_id, role: UserRole) -> dict:
+    token = AccessTokenService(app.config["SECRET_KEY"], 60).issue(user_id, UserRole(role).value)
+    return {"Authorization": f"Bearer {token}"}

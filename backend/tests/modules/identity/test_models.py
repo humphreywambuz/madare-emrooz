@@ -14,7 +14,7 @@ def test_user_defaults(session, make_user):
     assert user.created_at is not None
 
 
-def test_mobile_must_be_e164(session):
+def test_mobile_must_be_iranian_international_format(session):
     session.add(UserModel(mobile="09121234567"))
     with pytest.raises(IntegrityError):
         session.flush()

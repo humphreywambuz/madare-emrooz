@@ -14,7 +14,8 @@ from app.shared.infrastructure.orm import TimestampMixin, UUIDPrimaryKeyMixin, e
 class MedicalDocumentModel(UUIDPrimaryKeyMixin, TimestampMixin, db.Model):
     """An uploaded test result or image (photo or PDF).
 
-    The file itself lives in object/file storage; only its key is stored here.
+    The file itself is in ``document_files`` (kept apart so listing documents doesn't
+    read the files); ``storage_key`` is ``db:<id>``.
     """
 
     __tablename__ = "medical_documents"
@@ -45,3 +46,16 @@ class MedicalDocumentModel(UUIDPrimaryKeyMixin, TimestampMixin, db.Model):
     fundal_height_cm: Mapped[Decimal | None] = mapped_column(sa.Numeric(4, 1))
     fetal_heart_rate_bpm: Mapped[int | None] = mapped_column(sa.SmallInteger)
     notes: Mapped[str | None] = mapped_column(sa.Text)
+
+
+class DocumentFileModel(db.Model):
+    """The uploaded file's bytes (JPEG, PNG or PDF, at most 10 MB)."""
+
+    __tablename__ = "document_files"
+
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        sa.ForeignKey("medical_documents.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    content: Mapped[bytes] = mapped_column(sa.LargeBinary)

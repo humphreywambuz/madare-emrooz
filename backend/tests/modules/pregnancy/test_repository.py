@@ -1,11 +1,11 @@
 from datetime import date
 
 import pytest
-from sqlalchemy.exc import IntegrityError
 
 from app.modules.pregnancy.domain.entities import Pregnancy
 from app.modules.pregnancy.domain.enums import ConceptionType, PregnancyStatus
 from app.modules.pregnancy.infrastructure.repository import SqlAlchemyPregnancyRepository
+from app.shared.domain.errors import ConflictError
 
 
 def new_pregnancy(user_id):
@@ -34,6 +34,9 @@ def test_round_trip(session, make_user):
 def test_database_allows_one_active_pregnancy(session, make_user):
     repo = SqlAlchemyPregnancyRepository(session)
     user = make_user()
-    repo.add(new_pregnancy(user.id))
-    with pytest.raises(IntegrityError):
+    first = new_pregnancy(user.id)
+    repo.add(first)
+    with pytest.raises(ConflictError):
         repo.add(new_pregnancy(user.id))
+    # The failed insert must not break the session for the rest of the request.
+    assert repo.get_active_for_user(user.id) == first

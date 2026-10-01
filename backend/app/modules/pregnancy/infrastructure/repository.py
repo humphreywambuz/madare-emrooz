@@ -1,12 +1,18 @@
 import uuid
 
 import sqlalchemy as sa
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.modules.pregnancy.domain.entities import Pregnancy
 from app.modules.pregnancy.domain.enums import PregnancyStatus
+from app.modules.pregnancy.domain.partner import PartnerLink
+from app.shared.domain.errors import ConflictError
+from app.shared.infrastructure.mapping import constraint_name, copy_to_row, to_entity
 
-from .models import PregnancyModel
+from .models import PartnerLinkModel, PregnancyModel
+
+ONE_ACTIVE_PER_USER = "uq_pregnancies_one_active_per_user"
 
 _FIELDS = (
     "id",
@@ -42,11 +48,54 @@ class SqlAlchemyPregnancyRepository:
         return _to_entity(row) if row else None
 
     def add(self, pregnancy: Pregnancy) -> None:
-        self._session.add(PregnancyModel(**{f: getattr(pregnancy, f) for f in _FIELDS}))
-        self._session.flush()
+        row = PregnancyModel(**{f: getattr(pregnancy, f) for f in _FIELDS})
+        try:
+            # A savepoint keeps the session usable if the insert is rejected.
+            with self._session.begin_nested():
+                self._session.add(row)
+        except IntegrityError as exc:
+            # A concurrent request started a pregnancy between the service's
+            # "already active?" check and this insert.
+            if getattr(exc.orig.diag, "constraint_name", None) == ONE_ACTIVE_PER_USER:
+                raise ConflictError("You already have an active pregnancy.") from exc
+            raise
 
     def save(self, pregnancy: Pregnancy) -> None:
         row = self._session.get(PregnancyModel, pregnancy.id)
         for f in _FIELDS:
             setattr(row, f, getattr(pregnancy, f))
+        self._session.flush()
+
+
+class SqlAlchemyPartnerLinkRepository:
+    """Implements ``application.ports.PartnerLinkRepository``."""
+
+    def __init__(self, session: Session):
+        self._session = session
+
+    def get(self, link_id: uuid.UUID) -> PartnerLink | None:
+        row = self._session.get(PartnerLinkModel, link_id)
+        return to_entity(PartnerLink, row) if row else None
+
+    def active_for_user(self, user_id: uuid.UUID) -> PartnerLink | None:
+        row = self._session.scalar(
+            sa.select(PartnerLinkModel).where(
+                PartnerLinkModel.user_id == user_id, PartnerLinkModel.revoked_at.is_(None)
+            )
+        )
+        return to_entity(PartnerLink, row) if row else None
+
+    def add(self, link: PartnerLink) -> None:
+        row = PartnerLinkModel()
+        copy_to_row(link, row)
+        try:
+            with self._session.begin_nested():
+                self._session.add(row)
+        except IntegrityError as exc:
+            if constraint_name(exc) == "uq_partner_links_one_active_per_user":
+                raise ConflictError("A new partner code was just made. Please try again.") from exc
+            raise
+
+    def save(self, link: PartnerLink) -> None:
+        copy_to_row(link, self._session.get(PartnerLinkModel, link.id))
         self._session.flush()

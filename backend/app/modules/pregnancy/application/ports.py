@@ -2,6 +2,7 @@ import uuid
 from typing import Protocol
 
 from app.modules.pregnancy.domain.entities import Pregnancy
+from app.modules.pregnancy.domain.partner import PartnerLink
 
 
 class PregnancyRepository(Protocol):
@@ -10,3 +11,13 @@ class PregnancyRepository(Protocol):
     def add(self, pregnancy: Pregnancy) -> None: ...
 
     def save(self, pregnancy: Pregnancy) -> None: ...
+
+
+class PartnerLinkRepository(Protocol):
+    def get(self, link_id: uuid.UUID) -> PartnerLink | None: ...
+
+    def active_for_user(self, user_id: uuid.UUID) -> PartnerLink | None: ...
+
+    def add(self, link: PartnerLink) -> None: ...
+
+    def save(self, link: PartnerLink) -> None: ...
