@@ -11,9 +11,10 @@ from flask import current_app
 from app.extensions import db
 from app.modules.audit.infrastructure.trail import SqlAlchemyAuditTrail
 from app.modules.care_team.application.services import CareTeamService, StaffService
-from app.modules.care_team.domain.enums import AlertKind, DoctorPatientScope
+from app.modules.care_team.domain.enums import AlertKind, ApprovalScope, DoctorPatientScope
 from app.modules.care_team.infrastructure.repositories import (
     SqlAlchemyAlertRepository,
+    SqlAlchemyApprovalRepository,
     SqlAlchemyCareAssignmentRepository,
     SqlAlchemyPatientDirectory,
     SqlAlchemyStaffDirectory,
@@ -21,6 +22,8 @@ from app.modules.care_team.infrastructure.repositories import (
 )
 from app.modules.documents.application.services import DocumentService
 from app.modules.documents.infrastructure.repositories import SqlAlchemyDocumentRepository
+from app.modules.fitness.application.services import FitnessService
+from app.modules.fitness.infrastructure.repositories import SqlAlchemyFitnessProfileRepository
 from app.modules.identity.application.services import AuthService, OtpPolicy, UserAccounts
 from app.modules.identity.infrastructure.repositories import (
     SqlAlchemyOtpRepository,
@@ -34,13 +37,19 @@ from app.modules.identity.infrastructure.sms import (
 )
 from app.modules.monitoring.application.services import MonitoringService
 from app.modules.monitoring.infrastructure.repositories import SqlAlchemyDailyLogRepository
+from app.modules.pregnancy.application.partner import PartnerService
 from app.modules.pregnancy.application.services import PregnancyService
 from app.modules.profiles.application.services import ProfileService
 from app.modules.profiles.infrastructure.repositories import (
     SqlAlchemyMedicalHistoryRepository,
     SqlAlchemyProfileRepository,
 )
-from app.modules.pregnancy.infrastructure.repository import SqlAlchemyPregnancyRepository
+from app.modules.pregnancy.infrastructure.repository import (
+    SqlAlchemyPartnerLinkRepository,
+    SqlAlchemyPregnancyRepository,
+)
+from app.modules.rehabilitation.application.services import RehabService
+from app.modules.rehabilitation.infrastructure.repositories import SqlAlchemyRehabProfileRepository
 from app.shared.api.auth import token_service
 from app.shared.infrastructure.unit_of_work import SqlAlchemyUnitOfWork
 
@@ -153,4 +162,40 @@ def document_service() -> DocumentService:
         audit=SqlAlchemyAuditTrail(session),
         uow=SqlAlchemyUnitOfWork(session),
         max_file_bytes=current_app.config["DOCUMENT_MAX_BYTES"],
+    )
+
+
+def fitness_service() -> FitnessService:
+    session = db.session
+    return FitnessService(
+        profiles=SqlAlchemyFitnessProfileRepository(session),
+        access=care_team_service(),
+        audit=SqlAlchemyAuditTrail(session),
+        uow=SqlAlchemyUnitOfWork(session),
+    )
+
+
+def rehab_service() -> RehabService:
+    session = db.session
+    approvals = SqlAlchemyApprovalRepository(session)
+    return RehabService(
+        profiles=SqlAlchemyRehabProfileRepository(session),
+        has_plan_approval=lambda patient_id: approvals.active(
+            patient_id, ApprovalScope.REHABILITATION_PLAN
+        ) is not None,
+        require_document_of=document_service().require_document_of,
+        access=care_team_service(),
+        audit=SqlAlchemyAuditTrail(session),
+        uow=SqlAlchemyUnitOfWork(session),
+    )
+
+
+def partner_service() -> PartnerService:
+    session = db.session
+    return PartnerService(
+        links=SqlAlchemyPartnerLinkRepository(session),
+        pregnancies=SqlAlchemyPregnancyRepository(session),
+        audit=SqlAlchemyAuditTrail(session),
+        uow=SqlAlchemyUnitOfWork(session),
+        secret_key=current_app.config["SECRET_KEY"],
     )

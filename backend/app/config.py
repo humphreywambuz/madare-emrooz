@@ -22,6 +22,8 @@ class Config:
     OTP_RESEND_COOLDOWN_SECONDS = int(os.environ.get("OTP_RESEND_COOLDOWN_SECONDS", 60))
     OTP_MAX_PER_MOBILE_PER_HOUR = int(os.environ.get("OTP_MAX_PER_MOBILE_PER_HOUR", 5))
     OTP_MAX_PER_IP_PER_HOUR = int(os.environ.get("OTP_MAX_PER_IP_PER_HOUR", 20))
+    # Base of the partner QR link, e.g. https://madaremrooz.ir (defaults to the request's host).
+    PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "")
     # Medical documents (JPEG, PNG or PDF) are stored in PostgreSQL.
     DOCUMENT_MAX_BYTES = int(os.environ.get("DOCUMENT_MAX_BYTES", 10 * 1024 * 1024))
     # Requests larger than this are refused before they are read (413).

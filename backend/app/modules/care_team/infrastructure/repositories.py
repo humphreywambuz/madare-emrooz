@@ -11,8 +11,8 @@ from app.modules.care_team.application.views import (
     PatientRow,
     StaffView,
 )
-from app.modules.care_team.domain.entities import Alert, CareAssignment, StaffProfile
-from app.modules.care_team.domain.enums import CareRole
+from app.modules.care_team.domain.entities import Alert, CareApproval, CareAssignment, StaffProfile
+from app.modules.care_team.domain.enums import ApprovalScope, CareRole
 from app.modules.identity.domain.enums import STAFF_ROLES, UserRole
 from app.shared.domain.errors import ConflictError
 from app.shared.infrastructure.mapping import (
@@ -22,7 +22,7 @@ from app.shared.infrastructure.mapping import (
     to_entity,
 )
 
-from .models import AlertModel, CareAssignmentModel, StaffProfileModel
+from .models import AlertModel, CareApprovalModel, CareAssignmentModel, StaffProfileModel
 
 # Read-only views of other modules' tables, joined by name for the staff panel lists.
 # Writes to them always go through the owning module.
@@ -262,3 +262,41 @@ class SqlAlchemyPatientDirectory:
             )
             query = query.where(assigned)
         return [PatientRow(**r._mapping) for r in self._session.execute(query)]
+
+
+class SqlAlchemyApprovalRepository:
+    def __init__(self, session: Session):
+        self._session = session
+
+    def active(self, patient_id: uuid.UUID, scope: ApprovalScope) -> CareApproval | None:
+        row = self._session.scalar(
+            sa.select(CareApprovalModel).where(
+                CareApprovalModel.patient_id == patient_id,
+                CareApprovalModel.scope == scope,
+                CareApprovalModel.revoked_at.is_(None),
+            )
+        )
+        return to_entity(CareApproval, row) if row else None
+
+    def list_for_patient(self, patient_id: uuid.UUID) -> list[CareApproval]:
+        rows = self._session.scalars(
+            sa.select(CareApprovalModel)
+            .where(CareApprovalModel.patient_id == patient_id)
+            .order_by(CareApprovalModel.approved_at.desc())
+        )
+        return [to_entity(CareApproval, row) for row in rows]
+
+    def add(self, approval: CareApproval) -> None:
+        row = CareApprovalModel()
+        copy_to_row(approval, row)
+        try:
+            with self._session.begin_nested():
+                self._session.add(row)
+        except IntegrityError as exc:
+            if constraint_name(exc) == "uq_care_approvals_one_active_per_scope":
+                raise ConflictError("This plan is already approved.") from exc
+            raise
+
+    def save(self, approval: CareApproval) -> None:
+        copy_to_row(approval, self._session.get(CareApprovalModel, approval.id))
+        self._session.flush()

@@ -5,7 +5,7 @@ from datetime import datetime
 
 from app.shared.domain.errors import ValidationError
 
-from .enums import AlertKind, CareRole
+from .enums import AlertKind, ApprovalScope, CareRole
 
 
 @dataclass
@@ -56,3 +56,24 @@ class Alert:
             raise ValidationError("This alert has already been marked as seen.")
         self.seen_at = now
         self.seen_by_id = by
+
+
+@dataclass
+class CareApproval:
+    """A doctor's approval checkmark, e.g. for the rehabilitation plan. Revoking keeps the row."""
+
+    patient_id: uuid.UUID
+    approved_by_id: uuid.UUID
+    scope: ApprovalScope
+    approved_at: datetime
+    revoked_at: datetime | None = None
+    revoked_by_id: uuid.UUID | None = None
+    id: uuid.UUID = field(default_factory=uuid.uuid4)
+
+    @property
+    def is_active(self) -> bool:
+        return self.revoked_at is None
+
+    def revoke(self, by: uuid.UUID, now: datetime) -> None:
+        self.revoked_at = now
+        self.revoked_by_id = by
