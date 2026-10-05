@@ -5,8 +5,12 @@ import { useI18n } from 'vue-i18n'
 import { ApiError } from '@/api/client'
 import { type NewStaff, staff as staffApi } from '@/api/endpoints'
 import type { StaffMember } from '@/api/types'
+import AppIcon from '@/components/AppIcon.vue'
 import AsyncState from '@/components/AsyncState.vue'
 import ModalDialog from '@/components/ModalDialog.vue'
+import PageHeader from '@/components/PageHeader.vue'
+import SectionCard from '@/components/SectionCard.vue'
+import UserAvatar from '@/components/UserAvatar.vue'
 import { useToasts } from '@/stores/toast'
 import { asciiDigits } from '@/utils/format'
 import { useAsync } from '@/utils/useAsync'
@@ -18,6 +22,8 @@ const toasts = useToasts()
 
 const { data, loading, error, run } = useAsync(() => staffApi.list())
 onMounted(run)
+
+const ROLE_TONE: Record<string, string> = { midwife: 'badge-primary', doctor: 'badge-info', admin: 'badge-neutral' }
 
 const blank = (): NewStaff => ({ mobile: '', role: 'midwife', first_name: '', last_name: '', bio: '', is_listed: true })
 const creating = ref(false)
@@ -78,48 +84,55 @@ const fieldError = (name: string) => (formError.value instanceof ApiError ? form
 </script>
 
 <template>
-  <section class="flex flex-col gap-4">
-    <header class="flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <h1 class="text-2xl font-bold">{{ $t('staff.title') }}</h1>
-        <p class="max-w-2xl text-base-content/70">{{ $t('staff.subtitle') }}</p>
-      </div>
-      <button class="btn btn-primary" @click="openCreate">{{ $t('staff.add') }}</button>
-    </header>
+  <section class="flex flex-col gap-6">
+    <PageHeader :title="$t('staff.title')" :subtitle="$t('staff.subtitle')">
+      <button class="btn btn-primary" @click="openCreate"><AppIcon name="plus" class="size-4" />{{ $t('staff.add') }}</button>
+    </PageHeader>
 
     <AsyncState :loading="loading" :error="error" @retry="run">
-      <div class="overflow-x-auto rounded-box border border-base-300 bg-base-100">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>{{ $t('patients.name') }}</th>
-              <th>{{ $t('staff.role') }}</th>
-              <th>{{ $t('staff.mobile') }}</th>
-              <th>{{ $t('staff.is_listed') }}</th>
-              <th>{{ $t('staff.is_active') }}</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="m in data?.items" :key="m.user_id" :class="{ 'opacity-60': !m.is_active }">
-              <td class="font-medium">{{ fullName(m.first_name, m.last_name) || '—' }}</td>
-              <td><span class="badge badge-ghost">{{ $t(`roles.${m.role}`) }}</span></td>
-              <td class="ltr whitespace-nowrap text-start">{{ mobile(m.mobile) }}</td>
-              <td>
-                <span v-if="m.role === 'midwife'" class="badge" :class="m.is_listed ? 'badge-success badge-soft' : 'badge-ghost'">
-                  {{ m.is_listed ? $t('staff.listed') : $t('staff.hidden') }}
-                </span>
-              </td>
-              <td>
-                <span class="badge" :class="m.is_active ? 'badge-success badge-soft' : 'badge-error badge-soft'">
-                  {{ m.is_active ? $t('staff.active') : $t('staff.inactive') }}
-                </span>
-              </td>
-              <td class="text-end"><button class="btn btn-ghost btn-sm" @click="openEdit(m)">{{ $t('app.edit') }}</button></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <SectionCard flush>
+        <div class="overflow-x-auto">
+          <table class="table">
+            <thead>
+              <tr class="text-xs text-base-content/60">
+                <th>{{ $t('patients.name') }}</th>
+                <th>{{ $t('staff.role') }}</th>
+                <th>{{ $t('staff.mobile') }}</th>
+                <th>{{ $t('staff.is_listed') }}</th>
+                <th>{{ $t('staff.is_active') }}</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="m in data?.items" :key="m.user_id" :class="{ 'opacity-60': !m.is_active }">
+                <td>
+                  <div class="flex items-center gap-3">
+                    <UserAvatar :name="fullName(m.first_name, m.last_name) || '?'" />
+                    <div>
+                      <div class="font-semibold">{{ fullName(m.first_name, m.last_name) || '—' }}</div>
+                      <div v-if="m.bio" class="max-w-xs truncate text-sm text-base-content/60">{{ m.bio }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td><span class="badge badge-soft" :class="ROLE_TONE[m.role]">{{ $t(`roles.${m.role}`) }}</span></td>
+                <td class="ltr text-start whitespace-nowrap">{{ mobile(m.mobile) }}</td>
+                <td>
+                  <template v-if="m.role === 'midwife'">{{ m.is_listed ? $t('staff.listed') : $t('staff.hidden') }}</template>
+                </td>
+                <td>
+                  <span class="inline-flex items-center gap-2">
+                    <span class="status" :class="m.is_active ? 'status-success' : 'status-error'" />
+                    {{ m.is_active ? $t('staff.active') : $t('staff.inactive') }}
+                  </span>
+                </td>
+                <td class="text-end">
+                  <button class="btn btn-ghost btn-sm" @click="openEdit(m)"><AppIcon name="pencil" class="size-4" />{{ $t('app.edit') }}</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </SectionCard>
     </AsyncState>
 
     <ModalDialog v-model:open="creating" :title="$t('staff.addTitle')">
@@ -165,7 +178,7 @@ const fieldError = (name: string) => (formError.value instanceof ApiError ? form
     <ModalDialog :open="editing !== null" :title="$t('staff.edit')" @update:open="(v) => !v && (editing = null)">
       <form v-if="editing" class="flex flex-col gap-2" @submit.prevent="saveEdit">
         <div v-if="formError" role="alert" class="alert alert-error alert-soft text-sm">{{ errorText(formError) }}</div>
-        <div class="text-sm text-base-content/70">
+        <div class="text-sm text-base-content/60">
           {{ $t(`roles.${editing.role}`) }} · <span class="ltr">{{ mobile(editing.mobile) }}</span>
         </div>
         <div class="grid gap-2 sm:grid-cols-2">

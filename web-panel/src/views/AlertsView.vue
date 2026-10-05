@@ -5,13 +5,17 @@ import { useI18n } from 'vue-i18n'
 
 import { alerts as alertsApi } from '@/api/endpoints'
 import type { Alert } from '@/api/types'
+import AppIcon from '@/components/AppIcon.vue'
 import AsyncState from '@/components/AsyncState.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import PageHeader from '@/components/PageHeader.vue'
+import SectionCard from '@/components/SectionCard.vue'
 import { useToasts } from '@/stores/toast'
 import { useAsync } from '@/utils/useAsync'
 import { useFormat } from '@/utils/useFormat'
 
 const props = defineProps<{ mode: 'midwife' | 'admin' }>()
-const { dateTime, mobile, fullName, errorText } = useFormat()
+const { dateTime, timeAgo, mobile, fullName, errorText, num } = useFormat()
 const { t } = useI18n()
 const toasts = useToasts()
 const busy = ref<string | null>(null)
@@ -37,41 +41,49 @@ async function markSeen(alert: Alert) {
 </script>
 
 <template>
-  <section class="flex flex-col gap-4">
-    <header>
-      <h1 class="text-2xl font-bold">{{ $t(mode === 'midwife' ? 'alerts.title' : 'alerts.unassignedTitle') }}</h1>
-      <p class="text-base-content/70">{{ $t(mode === 'midwife' ? 'alerts.subtitle' : 'alerts.unassignedSubtitle') }}</p>
-    </header>
+  <section class="flex flex-col gap-6">
+    <PageHeader :title="$t(mode === 'midwife' ? 'alerts.title' : 'alerts.unassignedTitle')"
+                :subtitle="$t(mode === 'midwife' ? 'alerts.subtitle' : 'alerts.unassignedSubtitle')" />
 
     <AsyncState :loading="loading" :error="error" @retry="run">
-      <div v-if="!data?.items.length" class="rounded-box bg-base-100 p-10 text-center text-base-content/60">
-        {{ $t('alerts.empty') }}
-      </div>
-      <ul v-else class="flex flex-col gap-3">
-        <li v-for="alert in data.items" :key="alert.id"
-            class="card card-border border-error/40 bg-base-100 shadow-xs">
-          <div class="card-body flex-row flex-wrap items-center gap-4 p-4">
-            <span class="badge badge-error">{{ $t(`alerts.kind.${alert.kind}`) }}</span>
-            <div class="min-w-48 flex-1">
-              <div class="font-semibold">
-                {{ fullName(alert.patient_first_name, alert.patient_last_name) || $t('patients.noName') }}
+      <SectionCard v-if="!data?.items.length" flush>
+        <EmptyState icon="checkCircle" tone="success" :title="$t('ui.allClear')" :text="$t('ui.allClearText')" />
+      </SectionCard>
+
+      <SectionCard v-else flush :title="$t('ui.alertsWaiting', { n: num(data.items.length) })">
+        <ul class="list">
+          <li v-for="(alert, i) in data.items" :key="alert.id"
+              class="list-row animate-rise items-center motion-reduce:animate-none" :style="{ animationDelay: `${Math.min(i, 8) * 60}ms` }">
+            <span class="grid size-11 place-items-center rounded-full bg-error/10 text-error">
+              <AppIcon name="droplet" class="size-5" />
+            </span>
+            <div class="min-w-0">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="font-bold">
+                  {{ fullName(alert.patient_first_name, alert.patient_last_name) || $t('patients.noName') }}
+                </span>
+                <span class="badge badge-error badge-soft badge-sm">{{ $t(`alerts.kind.${alert.kind}`) }}</span>
               </div>
-              <div class="text-sm text-base-content/70">
-                {{ $t('alerts.reportedAt') }}: {{ dateTime(alert.created_at) }}
+              <div class="mt-0.5 text-sm text-base-content/60">
+                <span class="font-semibold text-base-content">{{ timeAgo(alert.created_at) }}</span>،
+                {{ dateTime(alert.created_at) }}
               </div>
             </div>
-            <a class="btn btn-sm btn-ghost ltr" :href="`tel:${alert.patient_mobile}`">
-              {{ mobile(alert.patient_mobile) }}
-            </a>
-            <RouterLink v-if="mode === 'midwife'" class="btn btn-sm" :to="`/patients/${alert.patient_id}`">
-              {{ $t('alerts.openRecord') }}
-            </RouterLink>
-            <button class="btn btn-sm btn-primary" :disabled="busy === alert.id" @click="markSeen(alert)">
-              <span v-if="busy === alert.id" class="loading loading-spinner loading-xs" />{{ $t('alerts.markSeen') }}
-            </button>
-          </div>
-        </li>
-      </ul>
+            <div class="max-md:list-col-wrap flex flex-wrap items-center gap-2">
+              <a class="btn btn-sm btn-outline ltr" :href="`tel:${alert.patient_mobile}`">
+                <AppIcon name="phone" class="size-4" />{{ mobile(alert.patient_mobile) }}
+              </a>
+              <RouterLink v-if="mode === 'midwife'" class="btn btn-sm btn-soft btn-primary" :to="`/patients/${alert.patient_id}`">
+                {{ $t('alerts.openRecord') }}
+              </RouterLink>
+              <button class="btn btn-sm btn-primary" :disabled="busy === alert.id" @click="markSeen(alert)">
+                <span v-if="busy === alert.id" class="loading loading-spinner loading-xs" />
+                <AppIcon v-else name="check" class="size-4" />{{ $t('alerts.markSeen') }}
+              </button>
+            </div>
+          </li>
+        </ul>
+      </SectionCard>
     </AsyncState>
   </section>
 </template>

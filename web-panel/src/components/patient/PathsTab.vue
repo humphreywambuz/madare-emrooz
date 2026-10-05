@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import { patients } from '@/api/endpoints'
 import type { PatientRecord } from '@/api/types'
+import SectionCard from '@/components/SectionCard.vue'
 import { useAuth } from '@/stores/auth'
 import { useAction } from '@/utils/useAction'
 import { useFormat } from '@/utils/useFormat'
@@ -58,59 +59,64 @@ async function run(call: () => Promise<unknown>, success: string) {
 
 <template>
   <div class="grid gap-6 lg:grid-cols-2">
-    <section class="rounded-box border border-base-300 p-4">
-      <h2 class="mb-3 text-lg font-semibold">{{ $t('paths.fitness') }}</h2>
-      <p v-if="!fitness" class="text-base-content/60">{{ $t('paths.noFitness') }}</p>
-      <div v-else class="flex flex-col gap-3">
-        <FieldList :rows="[
+    <SectionCard :title="$t('paths.fitness')">
+      <p v-if="!fitness" class="text-sm text-base-content/60">{{ $t('paths.noFitness') }}</p>
+      <template v-else>
+        <FieldList class="sm:grid-cols-1" :rows="[
           { label: $t('paths.goal'), value: enumLabel('fitness_goal', fitness.goal) },
           { label: $t('paths.goalNote'), value: fitness.goal_note || '—' },
-          { label: $t('paths.dashboard'), value: fitness.dashboard_unlocked ? $t('paths.unlocked') : $t('paths.locked') },
         ]" />
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <span>
-            {{ $t('paths.visit') }}:
-            <b>{{ fitness.specialist_visit_completed ? $t('paths.visitDone', { date: dateTime(fitness.specialist_visit_at) }) : $t('paths.visitPending') }}</b>
-          </span>
-          <button v-if="!fitness.specialist_visit_completed" class="btn btn-sm" :disabled="busy"
-                  @click="run(() => patients.fitnessVisit(id), 'paths.visitRecorded')">{{ $t('paths.markVisit') }}</button>
-        </div>
-      </div>
-    </section>
+        <ul class="steps steps-vertical">
+          <li class="step" :class="{ 'step-primary': fitness.specialist_visit_completed }">
+            <div class="flex w-full flex-wrap items-center justify-between gap-2 text-start text-sm">
+              <span>{{ $t('paths.visit') }}:
+                <b>{{ fitness.specialist_visit_completed ? $t('paths.visitDone', { date: dateTime(fitness.specialist_visit_at) }) : $t('paths.visitPending') }}</b>
+              </span>
+              <button v-if="!fitness.specialist_visit_completed" class="btn btn-sm btn-outline" :disabled="busy"
+                      @click="run(() => patients.fitnessVisit(id), 'paths.visitRecorded')">{{ $t('paths.markVisit') }}</button>
+            </div>
+          </li>
+          <li class="step" :class="{ 'step-primary': fitness.dashboard_unlocked }">
+            <span class="text-start text-sm">{{ $t('paths.dashboard') }}: <b>{{ fitness.dashboard_unlocked ? $t('paths.unlocked') : $t('paths.locked') }}</b></span>
+          </li>
+        </ul>
+      </template>
+    </SectionCard>
 
-    <section class="rounded-box border border-base-300 p-4">
-      <h2 class="mb-3 text-lg font-semibold">{{ $t('paths.rehab') }}</h2>
-      <p v-if="!rehab" class="text-base-content/60">{{ $t('paths.noRehab') }}</p>
-      <div v-else class="flex flex-col gap-4">
-        <FieldList :rows="rehabRows" />
+    <SectionCard :title="$t('paths.rehab')">
+      <p v-if="!rehab" class="text-sm text-base-content/60">{{ $t('paths.noRehab') }}</p>
+      <template v-else>
+        <FieldList class="sm:grid-cols-1" :rows="rehabRows" />
+        <ul class="steps steps-vertical">
+          <li class="step" :class="{ 'step-primary': rehab.specialist_visit_completed }">
+            <div class="flex w-full flex-wrap items-center justify-between gap-2 text-start text-sm">
+              <span>{{ $t('paths.visit') }}:
+                <b>{{ rehab.specialist_visit_completed ? $t('paths.visitDone', { date: dateTime(rehab.specialist_visit_at) }) : $t('paths.visitPending') }}</b>
+              </span>
+              <button v-if="!rehab.specialist_visit_completed" class="btn btn-sm btn-outline" :disabled="busy"
+                      @click="run(() => patients.rehabVisit(id), 'paths.visitRecorded')">{{ $t('paths.markVisit') }}</button>
+            </div>
+          </li>
+          <li class="step" :class="{ 'step-primary': approval }">
+            <div class="flex w-full flex-wrap items-center justify-between gap-2 text-start text-sm">
+              <span>{{ $t('paths.approval') }}:
+                <b>{{ approval ? $t('paths.approved', { date: dateTime(approval.approved_at) }) : $t('paths.notApproved') }}</b>
+              </span>
+              <template v-if="auth.role === 'doctor'">
+                <button v-if="!approval" class="btn btn-sm btn-primary" :disabled="busy"
+                        @click="run(() => patients.approve(id, 'rehabilitation_plan'), 'paths.approvedDone')">{{ $t('paths.approve') }}</button>
+                <button v-else class="btn btn-sm btn-ghost text-error" :disabled="busy"
+                        @click="run(() => patients.revoke(id, 'rehabilitation_plan'), 'paths.revokedDone')">{{ $t('paths.revoke') }}</button>
+              </template>
+            </div>
+          </li>
+          <li class="step" :class="{ 'step-primary': !rehab.is_advanced_locked }">
+            <span class="text-start text-sm">{{ $t('paths.advanced') }}:
+              <b>{{ rehab.is_advanced_locked ? $t('paths.advancedLocked') : $t('paths.advancedOpen') }}</b></span>
+          </li>
+        </ul>
 
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <span>
-            {{ $t('paths.visit') }}:
-            <b>{{ rehab.specialist_visit_completed ? $t('paths.visitDone', { date: dateTime(rehab.specialist_visit_at) }) : $t('paths.visitPending') }}</b>
-          </span>
-          <button v-if="!rehab.specialist_visit_completed" class="btn btn-sm" :disabled="busy"
-                  @click="run(() => patients.rehabVisit(id), 'paths.visitRecorded')">{{ $t('paths.markVisit') }}</button>
-        </div>
-
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <span>
-            {{ $t('paths.approval') }}:
-            <b>{{ approval ? $t('paths.approved', { date: dateTime(approval.approved_at) }) : $t('paths.notApproved') }}</b>
-          </span>
-          <template v-if="auth.role === 'doctor'">
-            <button v-if="!approval" class="btn btn-sm btn-primary" :disabled="busy"
-                    @click="run(() => patients.approve(id, 'rehabilitation_plan'), 'paths.approvedDone')">{{ $t('paths.approve') }}</button>
-            <button v-else class="btn btn-sm btn-ghost text-error" :disabled="busy"
-                    @click="run(() => patients.revoke(id, 'rehabilitation_plan'), 'paths.revokedDone')">{{ $t('paths.revoke') }}</button>
-          </template>
-        </div>
-
-        <div class="alert" :class="rehab.is_advanced_locked ? 'alert-warning alert-soft' : 'alert-success alert-soft'">
-          {{ $t('paths.advanced') }}: {{ rehab.is_advanced_locked ? $t('paths.advancedLocked') : $t('paths.advancedOpen') }}
-        </div>
-
-        <div class="flex flex-col gap-2">
+        <div class="flex flex-col gap-2 border-t border-base-300 pt-4 text-sm">
           <span>{{ $t('paths.imaging') }}: <b>{{ imagingDoc?.original_filename ?? $t('paths.noImaging') }}</b></span>
           <div v-if="auth.role === 'midwife' && imagingDocs.length" class="join">
             <select v-model="chosenImaging" class="select select-sm join-item flex-1">
@@ -121,7 +127,7 @@ async function run(call: () => Promise<unknown>, success: string) {
                     @click="run(() => patients.linkImaging(id, chosenImaging), 'paths.linked')">{{ $t('app.save') }}</button>
           </div>
         </div>
-      </div>
-    </section>
+      </template>
+    </SectionCard>
   </div>
 </template>

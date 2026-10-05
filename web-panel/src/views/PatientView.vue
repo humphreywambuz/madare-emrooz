@@ -11,6 +11,7 @@ import NotesTab from '@/components/patient/NotesTab.vue'
 import OverviewTab from '@/components/patient/OverviewTab.vue'
 import PathsTab from '@/components/patient/PathsTab.vue'
 import PatientHeader from '@/components/patient/PatientHeader.vue'
+import PatientMargin from '@/components/patient/PatientMargin.vue'
 import PregnancyTab from '@/components/patient/PregnancyTab.vue'
 import { useAsync } from '@/utils/useAsync'
 
@@ -38,21 +39,31 @@ function select(name: Tab) {
 </script>
 
 <template>
-  <section class="flex flex-col gap-4">
-    <RouterLink to="/patients" class="link link-hover w-fit text-sm">← {{ $t('patient.back') }}</RouterLink>
+  <section class="flex flex-col gap-6">
+    <div class="breadcrumbs p-0 text-sm">
+      <ul>
+        <li><RouterLink to="/patients">{{ $t('patient.back') }}</RouterLink></li>
+        <li v-if="record" class="font-semibold">{{ [record.patient.first_name, record.patient.last_name].filter(Boolean).join(' ') }}</li>
+      </ul>
+    </div>
     <AsyncState :loading="loading" :error="error" @retry="run">
       <template v-if="record">
-        <PatientHeader :patient="record.patient" :tags="record.risk_tags" @changed="run" />
-        <div class="card bg-base-100 shadow-xs">
-          <div role="tablist" class="tabs tabs-border overflow-x-auto px-2 pt-1">
-            <button v-for="(_, name) in TABS" :key="name" role="tab" class="tab whitespace-nowrap"
-                    :class="{ 'tab-active': tab === name }" :aria-selected="tab === name" @click="select(name)">
-              {{ $t(`patient.tabs.${name}`) }}
-            </button>
+        <PatientHeader :patient="record.patient" />
+        <div class="grid gap-6 lg:grid-cols-3">
+          <div class="flex min-w-0 flex-col gap-6 lg:col-span-2">
+            <div class="overflow-x-auto">
+              <div role="tablist" class="tabs tabs-box w-max border border-base-300 bg-base-100">
+                <button v-for="(_, name) in TABS" :key="name" role="tab" class="tab whitespace-nowrap [--tab-bg:var(--color-primary)]"
+                        :class="{ 'tab-active text-primary-content': tab === name }" :aria-selected="tab === name" @click="select(name)">
+                  {{ $t(`patient.tabs.${name}`) }}
+                </button>
+              </div>
+            </div>
+            <Transition name="page" mode="out-in">
+              <component :is="TABS[tab]" :key="tab" :record="record" @changed="run" />
+            </Transition>
           </div>
-          <div class="card-body p-5">
-            <component :is="TABS[tab]" :record="record" @changed="run" />
-          </div>
+          <PatientMargin :record="record" @changed="run" />
         </div>
       </template>
     </AsyncState>

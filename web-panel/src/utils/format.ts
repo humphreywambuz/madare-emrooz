@@ -62,3 +62,14 @@ export function localMidnight(isoDate: string): string {
   const mm = String(abs % 60).padStart(2, '0')
   return `${isoDate}T00:00:00${sign}${hh}:${mm}`
 }
+
+/** How long ago a timestamp was, e.g. "۲۵ دقیقه پیش" / "25 minutes ago". */
+export function formatTimeAgo(iso: string | null | undefined, locale: Locale, now = Date.now()): string {
+  if (!iso) return '—'
+  const minutes = Math.round((new Date(iso).getTime() - now) / 60_000)
+  const relative = new Intl.RelativeTimeFormat(locale === 'fa' ? 'fa-IR' : 'en-GB', { numeric: 'auto' })
+  if (Math.abs(minutes) < 60) return relative.format(minutes, 'minute')
+  const hours = Math.round(minutes / 60)
+  if (Math.abs(hours) < 24) return relative.format(hours, 'hour')
+  return relative.format(Math.round(hours / 24), 'day')
+}

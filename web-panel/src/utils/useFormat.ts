@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { ApiError } from '@/api/client'
 
 import {
-  formatDate, formatDateTime, formatMobile, formatNumber, localDigits, type Locale,
+  formatDate, formatDateTime, formatMobile, formatNumber, formatTimeAgo, localDigits, type Locale,
 } from './format'
 
 export function useFormat() {
@@ -18,6 +18,7 @@ export function useFormat() {
     digits: (s: string | null | undefined) => localDigits(s, current.value),
     date: (iso: string | null | undefined) => formatDate(iso, current.value),
     dateTime: (iso: string | null | undefined) => formatDateTime(iso, current.value),
+    timeAgo: (iso: string | null | undefined) => formatTimeAgo(iso, current.value),
     mobile: (m: string | null | undefined) => formatMobile(m, current.value),
     /** Label of a backend enum value, e.g. enumLabel('join_goal', 'fitness'). */
     enumLabel: (group: string, value: string | null | undefined) => {
