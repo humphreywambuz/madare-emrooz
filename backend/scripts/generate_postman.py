@@ -6,7 +6,9 @@ Run from the backend directory after adding or changing an endpoint:
 
 tests/test_postman.py fails when a route is missing from ENDPOINTS or the JSON files are stale.
 
-Using it: import both files into Postman and pick the "Madare Emrooz (local)" environment.
+Using it: import both files into Postman and pick the "Madare Emrooz (local)" environment. Its
+baseUrl is the docker compose stack (http://localhost:8080); for `flask run` set it to
+http://localhost:5000.
 Run "Request code" then "Sign in" in "Auth (mother)" or "Auth (staff)"; the sign-in saves the
 token for that folder. With SMS_BACKEND=console the code is printed in the server log.
 Requests that create something (a pregnancy link, a staff member, a document…) save its id for
@@ -38,7 +40,7 @@ PATH_VARS = {
 }
 
 VARIABLES = {
-    "baseUrl": "http://localhost:5000",
+    "baseUrl": "http://localhost:8080",
     "motherMobile": "09121234567",
     "staffMobile": "09120000001",
     "otpCode": "",
@@ -74,14 +76,17 @@ def sign_in(prefix: str, mobile_var: str) -> list[dict]:
         ep("POST", "/api/v1/auth/otp/request", "Request code", auth=None,
            body={"mobile": f"{{{{{mobile_var}}}}}"},
            doc="Sends a 6-digit code by SMS (202). Any format works: 0912…, +98 912…, Persian digits. "
-               "Limits: 1 per minute and 5 per hour per number, 20 per hour per network (429 + Retry-After)."),
+               "Limits: 1 per minute and 5 per hour per number, 20 per hour per network (429 + Retry-After). "
+               "Simultaneous requests are handled one at a time, so they can't get past the limits."),
         ep("POST", "/api/v1/auth/otp/verify", "Sign in", auth=None,
            body={"mobile": f"{{{{{mobile_var}}}}}", "code": "{{otpCode}}"},
            save_vars=[save(f"{prefix}Token", "pm.response.json().access_token"),
                       save(f"{prefix}RefreshToken", "pm.response.json().refresh_token")]
            + ([save("patientId", "pm.response.json().user.id")] if prefix == "mother" else []),
            doc="Returns a 15-minute access token, a 30-day refresh token and is_new_user. "
-               "A new number creates a mother's account. Put the SMS code in the otpCode variable first."),
+               "A new number creates a mother's account. Put the SMS code in the otpCode variable first. "
+               "The code expires after 2 minutes, works once and locks after 5 wrong tries, also under "
+               "parallel requests."),
         ep("POST", "/api/v1/auth/token/refresh", "Refresh tokens", auth=None,
            body={"refresh_token": f"{{{{{prefix}RefreshToken}}}}"},
            save_vars=[save(f"{prefix}Token", "pm.response.json().access_token"),
@@ -113,7 +118,9 @@ FOLDERS = [
             "birth_date": "1995-06-15", "height_cm": 165.5, "initial_weight_kg": 60,
             "mother_blood_type": "O-", "spouse_blood_type": "A+",
         }, doc="201 when created, 200 when updated. join_goal: pregnancy | fitness | rehabilitation; "
-               "reproductive_status (pregnancy path): trying_to_conceive | pregnant | postpartum."),
+               "reproductive_status (pregnancy path): trying_to_conceive | pregnant | postpartum. "
+               "An Rh-negative mother gets the needs_rhogam risk tag unless spouse_blood_type is known "
+               "to be Rh-negative; leave it out when unknown. birth_date must be before today (Tehran)."),
         ep("GET", "/api/v1/medical-history", "Get medical history"),
         ep("PUT", "/api/v1/medical-history", "Save medical history", body={
             "previous_children_count": 1, "miscarriage_count": 0, "has_diabetes": False,
@@ -141,15 +148,19 @@ FOLDERS = [
             "related_surgery_name": "سزارین", "uses_pain_medication": False,
             "time_since_delivery": "two_to_six_months", "has_pelvic_warning_signs": False,
             "has_diastasis_recti_or_stitch_pain": False,
-        }, doc="Only the chosen sub-type's questions may be answered."),
+        }, doc="Only the chosen sub-type's questions may be answered. Changing the answers after a doctor's "
+               "approval withdraws that approval: is_advanced_locked turns true again until a doctor "
+               "approves the new answers. The recorded visit is kept."),
     ]),
     ("Mother · pregnancy", "motherToken", "Pregnancy, bleeding reports, partner QR code.", [
         ep("POST", "/api/v1/pregnancies", "Start pregnancy", body={
             "lmp_date": LMP_EXAMPLE, "conception_type": "natural", "avg_cycle_length_days": 28,
             "care_provider_type": "midwife", "care_provider_name": "",
-        }, doc="The due date is calculated from the LMP. Only one active pregnancy (409)."),
+        }, doc="The due date is calculated from the LMP. Only one active pregnancy (409). lmp_date may not "
+               "be after today in Tehran, nor more than 44 weeks ago."),
         ep("GET", "/api/v1/pregnancies/current", "Current pregnancy",
-           doc="Week and due date. due_date_source is lmp or clinician."),
+           doc="Week and due date, counted on Tehran's date; gestational_week is never below 0. "
+               "due_date_source is lmp or clinician."),
         ep("PATCH", "/api/v1/pregnancies/current", "Correct pregnancy details",
            body={"lmp_date": LMP_EXAMPLE},
            doc="Send only the fields to fix: lmp_date, avg_cycle_length_days, conception_type, "

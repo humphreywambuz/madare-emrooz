@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "dd5b8c48-6494-592b-b705-b23c463effad",
     "name": "Madare Emrooz API",
-    "description": "Generate the Postman collection and environment in docs/postman/.\n\nRun from the backend directory after adding or changing an endpoint:\n\n    python scripts/generate_postman.py\n\ntests/test_postman.py fails when a route is missing from ENDPOINTS or the JSON files are stale.\n\nUsing it: import both files into Postman and pick the \"Madare Emrooz (local)\" environment.\nRun \"Request code\" then \"Sign in\" in \"Auth (mother)\" or \"Auth (staff)\"; the sign-in saves the\ntoken for that folder. With SMS_BACKEND=console the code is printed in the server log.\nRequests that create something (a pregnancy link, a staff member, a document…) save its id for\nthe requests that follow. The folders are in an order that works with \"Run collection\".",
+    "description": "Generate the Postman collection and environment in docs/postman/.\n\nRun from the backend directory after adding or changing an endpoint:\n\n    python scripts/generate_postman.py\n\ntests/test_postman.py fails when a route is missing from ENDPOINTS or the JSON files are stale.\n\nUsing it: import both files into Postman and pick the \"Madare Emrooz (local)\" environment. Its\nbaseUrl is the docker compose stack (http://localhost:8080); for `flask run` set it to\nhttp://localhost:5000.\nRun \"Request code\" then \"Sign in\" in \"Auth (mother)\" or \"Auth (staff)\"; the sign-in saves the\ntoken for that folder. With SMS_BACKEND=console the code is printed in the server log.\nRequests that create something (a pregnancy link, a staff member, a document…) save its id for\nthe requests that follow. The folders are in an order that works with \"Run collection\".",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -34,7 +34,7 @@
                 "request"
               ]
             },
-            "description": "Sends a 6-digit code by SMS (202). Any format works: 0912…, +98 912…, Persian digits. Limits: 1 per minute and 5 per hour per number, 20 per hour per network (429 + Retry-After).",
+            "description": "Sends a 6-digit code by SMS (202). Any format works: 0912…, +98 912…, Persian digits. Limits: 1 per minute and 5 per hour per number, 20 per hour per network (429 + Retry-After). Simultaneous requests are handled one at a time, so they can't get past the limits.",
             "auth": {
               "type": "noauth"
             },
@@ -73,7 +73,7 @@
                 "verify"
               ]
             },
-            "description": "Returns a 15-minute access token, a 30-day refresh token and is_new_user. A new number creates a mother's account. Put the SMS code in the otpCode variable first.",
+            "description": "Returns a 15-minute access token, a 30-day refresh token and is_new_user. A new number creates a mother's account. Put the SMS code in the otpCode variable first. The code expires after 2 minutes, works once and locks after 5 wrong tries, also under parallel requests.",
             "auth": {
               "type": "noauth"
             },
@@ -273,7 +273,7 @@
                 "request"
               ]
             },
-            "description": "Sends a 6-digit code by SMS (202). Any format works: 0912…, +98 912…, Persian digits. Limits: 1 per minute and 5 per hour per number, 20 per hour per network (429 + Retry-After).",
+            "description": "Sends a 6-digit code by SMS (202). Any format works: 0912…, +98 912…, Persian digits. Limits: 1 per minute and 5 per hour per number, 20 per hour per network (429 + Retry-After). Simultaneous requests are handled one at a time, so they can't get past the limits.",
             "auth": {
               "type": "noauth"
             },
@@ -312,7 +312,7 @@
                 "verify"
               ]
             },
-            "description": "Returns a 15-minute access token, a 30-day refresh token and is_new_user. A new number creates a mother's account. Put the SMS code in the otpCode variable first.",
+            "description": "Returns a 15-minute access token, a 30-day refresh token and is_new_user. A new number creates a mother's account. Put the SMS code in the otpCode variable first. The code expires after 2 minutes, works once and locks after 5 wrong tries, also under parallel requests.",
             "auth": {
               "type": "noauth"
             },
@@ -507,7 +507,7 @@
                 "profile"
               ]
             },
-            "description": "201 when created, 200 when updated. join_goal: pregnancy | fitness | rehabilitation; reproductive_status (pregnancy path): trying_to_conceive | pregnant | postpartum.",
+            "description": "201 when created, 200 when updated. join_goal: pregnancy | fitness | rehabilitation; reproductive_status (pregnancy path): trying_to_conceive | pregnant | postpartum. An Rh-negative mother gets the needs_rhogam risk tag unless spouse_blood_type is known to be Rh-negative; leave it out when unknown. birth_date must be before today (Tehran).",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"first_name\": \"سارا\",\n  \"last_name\": \"احمدی\",\n  \"join_goal\": \"pregnancy\",\n  \"reproductive_status\": \"pregnant\",\n  \"national_code\": \"0012345679\",\n  \"birth_date\": \"1995-06-15\",\n  \"height_cm\": 165.5,\n  \"initial_weight_kg\": 60,\n  \"mother_blood_type\": \"O-\",\n  \"spouse_blood_type\": \"A+\"\n}",
@@ -823,7 +823,7 @@
                 "rehab-profile"
               ]
             },
-            "description": "Only the chosen sub-type's questions may be answered.",
+            "description": "Only the chosen sub-type's questions may be answered. Changing the answers after a doctor's approval withdraws that approval: is_advanced_locked turns true again until a doctor approves the new answers. The recorded visit is kept.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"subcategory\": \"postpartum_recovery\",\n  \"pain_level\": 4,\n  \"had_related_surgery\": true,\n  \"related_surgery_name\": \"سزارین\",\n  \"uses_pain_medication\": false,\n  \"time_since_delivery\": \"two_to_six_months\",\n  \"has_pelvic_warning_signs\": false,\n  \"has_diastasis_recti_or_stitch_pain\": false\n}",
@@ -873,7 +873,7 @@
                 "pregnancies"
               ]
             },
-            "description": "The due date is calculated from the LMP. Only one active pregnancy (409).",
+            "description": "The due date is calculated from the LMP. Only one active pregnancy (409). lmp_date may not be after today in Tehran, nor more than 44 weeks ago.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"lmp_date\": \"2026-05-01\",\n  \"conception_type\": \"natural\",\n  \"avg_cycle_length_days\": 28,\n  \"care_provider_type\": \"midwife\",\n  \"care_provider_name\": \"\"\n}",
@@ -903,7 +903,7 @@
                 "current"
               ]
             },
-            "description": "Week and due date. due_date_source is lmp or clinician."
+            "description": "Week and due date, counted on Tehran's date; gestational_week is never below 0. due_date_source is lmp or clinician."
           }
         },
         {
