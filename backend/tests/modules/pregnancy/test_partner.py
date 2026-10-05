@@ -1,14 +1,15 @@
 """Partner Mode: a QR code that shows the spouse the week and due date, without sign-in."""
 import uuid
-from datetime import date, timedelta
+from datetime import timedelta
 
 import sqlalchemy as sa
 
 from app.extensions import db
 from app.modules.audit.infrastructure.models import AuditLogModel
 from app.modules.pregnancy.domain.partner import parse_partner_token, partner_token
+from app.shared.application.clock import clinic_today
 
-LMP = (date.today() - timedelta(weeks=24, days=3)).isoformat()
+LMP = (clinic_today() - timedelta(weeks=24, days=3)).isoformat()
 
 
 def start(client, headers):

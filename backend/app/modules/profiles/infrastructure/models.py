@@ -10,6 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.extensions import db
 from app.modules.profiles.domain.enums import BloodType, JoinGoal, ReproductiveStatus
 from app.modules.profiles.domain.rules import age_on, rh_incompatibility_risk
+from app.shared.application.clock import clinic_today
 from app.shared.infrastructure.orm import TimestampMixin, enum_column
 
 
@@ -51,7 +52,7 @@ class ProfileModel(TimestampMixin, db.Model):
 
     @property
     def age(self) -> int | None:
-        return age_on(self.birth_date, date.today()) if self.birth_date else None
+        return age_on(self.birth_date, clinic_today()) if self.birth_date else None
 
     @property
     def rh_incompatibility_risk(self) -> bool:

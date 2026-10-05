@@ -53,7 +53,10 @@ class Otps(Repo):
     def discard(self, challenge):
         del self.items[challenge.id]
 
-    def latest_for_mobile(self, mobile):
+    def lock_sending(self, mobile, ip):
+        pass
+
+    def latest_for_mobile(self, mobile, lock=False):
         mine = [c for c in self.items.values() if c.mobile == mobile]
         return max(mine, key=lambda c: c.created_at, default=None)
 

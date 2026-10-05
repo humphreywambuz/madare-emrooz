@@ -10,6 +10,7 @@ from app.modules.audit.domain.enums import AuditEventType
 from app.modules.pregnancy.domain.entities import Pregnancy
 from app.modules.pregnancy.domain.enums import CareProviderType, ConceptionType, PregnancyStatus
 from app.shared.application.access import PatientAccess
+from app.shared.application.clock import clinic_today
 from app.shared.application.context import Actor
 from app.shared.application.unit_of_work import UnitOfWork
 from app.shared.domain.errors import ConflictError, NotFoundError
@@ -63,7 +64,7 @@ class PregnancyService:
         self,
         pregnancies: PregnancyRepository,
         uow: UnitOfWork,
-        today: Callable[[], date] = date.today,
+        today: Callable[[], date] = clinic_today,
         on_delivered: Callable[[uuid.UUID], None] | None = None,
         audit: AuditTrail | None = None,
         access: PatientAccess | None = None,

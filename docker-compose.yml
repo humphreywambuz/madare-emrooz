@@ -1,7 +1,8 @@
-# Madare Emrooz: PostgreSQL + API + staff web panel.
+# Madare Emrooz: PostgreSQL + API + staff web panel + mother-facing web app.
 #   cp .env.example .env      # then set SECRET_KEY (and the Kavenegar settings for real SMS)
 #   docker compose up -d --build
-#   open http://localhost:8080
+#   open http://localhost:8080   (care team panel)
+#   open http://localhost:8081   (mothers' app)
 name: madare-emrooz
 
 services:
@@ -52,6 +53,18 @@ services:
       BACKEND_URL: http://backend:5000
     ports:
       - "${WEB_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  mother:
+    build:
+      context: ./mother-app
+    restart: unless-stopped
+    environment:
+      BACKEND_URL: http://backend:5000
+    ports:
+      - "${MOTHER_PORT:-8081}:80"
     depends_on:
       backend:
         condition: service_healthy

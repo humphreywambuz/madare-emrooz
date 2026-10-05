@@ -33,6 +33,15 @@ def test_start_computes_due_date_and_week():
     assert pregnancy.gestational_week(on=date(2026, 1, 1) + timedelta(weeks=12, days=3)) == 12
 
 
+def test_week_never_goes_below_zero():
+    # A 45-day cycle moves the due date 17 days later, so counting back from it right after
+    # the LMP would give week -3.
+    pregnancy = start(lmp_date=TODAY - timedelta(days=2), avg_cycle_length_days=45)
+    assert pregnancy.gestational_age_days(on=TODAY) == 0
+    assert pregnancy.gestational_week(on=TODAY) == 0
+    assert pregnancy.gestational_week(on=TODAY + timedelta(weeks=5)) == 2
+
+
 @pytest.mark.parametrize(
     "overrides",
     [

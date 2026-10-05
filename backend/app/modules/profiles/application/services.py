@@ -11,6 +11,7 @@ from app.modules.audit.domain.enums import AuditEventType
 from app.modules.profiles.domain.entities import MedicalHistory, Profile
 from app.modules.profiles.domain.enums import BloodType, HomePath, JoinGoal, ReproductiveStatus
 from app.modules.profiles.domain.rules import age_on
+from app.shared.application.clock import clinic_today
 from app.shared.application.context import Actor
 from app.shared.application.unit_of_work import UnitOfWork
 from app.shared.domain.errors import NotFoundError
@@ -62,7 +63,7 @@ class ProfileService:
         histories: MedicalHistoryRepository,
         audit: AuditTrail,
         uow: UnitOfWork,
-        today: Callable[[], date] = date.today,
+        today: Callable[[], date] = clinic_today,
     ):
         self._profiles = profiles
         self._histories = histories

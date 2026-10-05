@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { PatientRecord } from '@/api/types'
+import SectionCard from '@/components/SectionCard.vue'
 import { useFormat } from '@/utils/useFormat'
 
 import FieldList from './FieldList.vue'
@@ -51,16 +52,14 @@ const historyRows = computed(() => {
 </script>
 
 <template>
-  <div class="grid gap-6">
-    <section>
-      <h2 class="mb-2 font-semibold">{{ $t('profile.title') }}</h2>
+  <div class="flex flex-col gap-6">
+    <SectionCard :title="$t('profile.title')">
       <FieldList v-if="profileRows.length" :rows="profileRows" />
-      <p v-else class="text-base-content/60">{{ $t('profile.none') }}</p>
-    </section>
-    <section>
-      <h2 class="mb-2 font-semibold">{{ $t('history.title') }}</h2>
+      <p v-else class="text-sm text-base-content/60">{{ $t('profile.none') }}</p>
+    </SectionCard>
+    <SectionCard :title="$t('history.title')">
       <FieldList v-if="historyRows.length" :rows="historyRows" />
-      <p v-else class="text-base-content/60">{{ $t('history.none') }}</p>
-    </section>
+      <p v-else class="text-sm text-base-content/60">{{ $t('history.none') }}</p>
+    </SectionCard>
   </div>
 </template>

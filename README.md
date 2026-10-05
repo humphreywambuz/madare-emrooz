@@ -1,9 +1,9 @@
 # Madare Emrooz (مادر امروز)
 
-Backend API and staff web panel for **Madare Emrooz**, a maternal and child health platform. Mothers use
-the mobile app (developed in a separate repository) to keep their health record, follow their
-pregnancy and report warning signs. Midwives, doctors and admins use the web panel in this repository
-to look after them.
+Backend API, staff web panel and mothers' web app for **Madare Emrooz**, a maternal and child health
+platform. Mothers keep their health record, follow their pregnancy and report warning signs, in the
+mobile app (developed in a separate repository) or in the mothers' web app here. Midwives, doctors and
+admins use the web panel in this repository to look after them.
 
 This repository contains:
 
@@ -11,6 +11,7 @@ This repository contains:
 |---|---|---|
 | [`backend/`](backend/README.md) | The API used by the mobile app and the web panel | Python 3.12, Flask, PostgreSQL 16 |
 | [`web-panel/`](web-panel/README.md) | The care team's web panel, in Persian and English | Vue 3, TypeScript, Vite, daisyUI |
+| [`mother-app/`](mother-app/README.md) | The mothers' web app, in Persian, built for phones | Vue 3, TypeScript, Vite, daisyUI |
 | `docker-compose.yml` | The whole system: database, API and web panel | Docker Compose |
 
 ---
@@ -132,6 +133,9 @@ docker compose exec backend flask create-admin 09121234567 --first-name Ali --la
 
 The API is at <http://localhost:8080/api/v1> (health check: `/api/v1/health`).
 
+The mothers' app is at <http://localhost:8081>. Any mobile number that is not a staff account signs in
+as a mother; a new number creates her account. Read the code from the log the same way.
+
 Useful commands:
 
 ```bash
@@ -161,6 +165,7 @@ Never commit `.env`.
 | `DOCTOR_PATIENT_SCOPE` | `all` | `all` in Phase 1: doctors see every mother. `assigned` in Phase 2: only the mothers who chose them. |
 | `TRUSTED_PROXY_COUNT` | `1` in Compose | Proxies in front of the API whose `X-Forwarded-*` headers are trusted. 1 = the web container's nginx; add one for each extra load balancer. Needed for the per-network OTP limits and correct IPs in the audit log. |
 | `WEB_PORT` | `8080` | Host port of the panel and API. |
+| `MOTHER_PORT` | `8081` | Host port of the mothers' app. |
 | `GUNICORN_WORKERS` | `3` | API worker processes. |
 
 Backend-only settings, with defaults suitable for production:
@@ -210,6 +215,8 @@ npm install
 cp .env.example .env              # VITE_BACKEND_URL=http://localhost:5000
 npm run dev                       # http://localhost:5173, proxies /api to the backend
 ```
+
+The mothers' app runs the same way from `mother-app/` (use `npm run dev -- --port 5174` to run both).
 
 ---
 
@@ -263,7 +270,8 @@ npm run dev                       # http://localhost:5173, proxies /api to the b
 | 429 | `rate_limited` | Too many SMS codes; the `Retry-After` header says how long to wait. |
 | 503 | `service_unavailable` | The SMS gateway or the API is down. |
 
-Dates are ISO 8601 (`2026-10-01`), and timestamps include the timezone.
+Dates are ISO 8601 (`2026-10-01`), and timestamps include the timezone. "Today" (for due dates,
+pregnancy weeks, ages and date checks) is the date in Tehran, whatever the server's time zone.
 
 ---
 
@@ -374,6 +382,7 @@ from Kavenegar are logged without the API key.
 | [`backend/docs/proposal-review.md`](backend/docs/proposal-review.md) | How the product proposal maps onto the backend |
 | [`backend/docs/postman/`](backend/docs/postman) | Postman collection and environment |
 | [`web-panel/README.md`](web-panel/README.md) | The panel's pages, code map and build |
+| [`mother-app/README.md`](mother-app/README.md) | The mothers' app: screens, code map and build |
 | `backend/docs/*.docx` | The Phase 1 data model specification and the product proposal (Persian) |
 
 ---

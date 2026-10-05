@@ -1,115 +1,119 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useTemplateRef } from 'vue'
 
-import { auth as authApi } from '@/api/endpoints'
+import AppIcon from '@/components/AppIcon.vue'
+import BrandMark from '@/components/BrandMark.vue'
+import ProgressRing from '@/components/ProgressRing.vue'
 import { setLocale } from '@/i18n'
-import { homeFor } from '@/router'
-import { useAuth } from '@/stores/auth'
-import { asciiDigits } from '@/utils/format'
 import { useFormat } from '@/utils/useFormat'
+import { CODE_LENGTH, useOtpLogin } from '@/utils/useOtpLogin'
+import { TOTAL_WEEKS } from '@/utils/usePregnancyProgress'
 
-const auth = useAuth()
-const router = useRouter()
-const route = useRoute()
-const { errorText, num, locale } = useFormat()
+const { errorText, num, locale, mobile: formatMobile } = useFormat()
+const codeInput = useTemplateRef<HTMLInputElement>('codeInput')
+const { step, mobile, code, busy, error, wait, canResend, sendCode, signIn, changeNumber } = useOtpLogin(codeInput)
 
-const step = ref<'mobile' | 'code'>('mobile')
-const mobile = ref('')
-const code = ref('')
-const busy = ref(false)
-const error = ref<unknown>(null)
-const wait = ref(0)
-let timer: ReturnType<typeof setInterval> | undefined
-
-const canResend = computed(() => wait.value === 0)
-
-function countdown(seconds: number) {
-  wait.value = seconds
-  clearInterval(timer)
-  timer = setInterval(() => {
-    wait.value = Math.max(0, wait.value - 1)
-    if (!wait.value) clearInterval(timer)
-  }, 1000)
-}
-onUnmounted(() => clearInterval(timer))
-
-async function sendCode() {
-  busy.value = true
-  error.value = null
-  try {
-    const sent = await authApi.requestCode(asciiDigits(mobile.value))
-    step.value = 'code'
-    code.value = ''
-    countdown(sent.resend_after)
-  } catch (e) {
-    error.value = e
-  } finally {
-    busy.value = false
-  }
-}
-
-async function signIn() {
-  busy.value = true
-  error.value = null
-  try {
-    await auth.signIn(asciiDigits(mobile.value), asciiDigits(code.value))
-    const next = typeof route.query.next === 'string' ? route.query.next : null
-    router.replace(next ?? homeFor(auth.role))
-  } catch (e) {
-    error.value = e
-  } finally {
-    busy.value = false
-  }
-}
+// The week shown on the welcome panel, the same one the design system uses in its own mock-ups.
+const DEMO_WEEK = 24
 </script>
 
 <template>
-  <div class="flex min-h-screen items-center justify-center bg-base-200 p-4">
-    <div class="card w-full max-w-sm bg-base-100 shadow-sm">
-      <div class="card-body gap-4">
-        <div class="flex items-start justify-between gap-2">
+  <div class="min-h-screen bg-base-200 p-4 sm:p-6 lg:p-8">
+    <div class="mx-auto grid min-h-[calc(100vh-4rem)] max-w-6xl gap-6 lg:grid-cols-2">
+      <!-- The welcome panel: the brand gradient, the promise and a glimpse of a mother's progress card. -->
+      <aside class="relative hidden overflow-hidden rounded-3xl border border-base-300 bg-linear-to-br from-primary/15 via-base-100 to-accent/40 p-10 lg:flex lg:flex-col lg:justify-between">
+        <div class="pointer-events-none absolute -end-24 -top-24 size-80 rounded-full bg-primary/10" aria-hidden="true" />
+        <div class="pointer-events-none absolute -bottom-32 -start-16 size-96 rounded-full bg-accent/30" aria-hidden="true" />
+
+        <div class="relative flex items-center gap-3">
+          <BrandMark />
           <div>
-            <div class="text-xl font-bold text-primary">{{ $t('app.name') }}</div>
-            <h1 class="text-base-content/70">{{ $t('login.title') }}</h1>
+            <div class="text-lg font-bold leading-tight">{{ $t('app.name') }}</div>
+            <div class="text-xs text-base-content/60">{{ $t('app.panel') }}</div>
           </div>
-          <button class="btn btn-ghost btn-xs" @click="setLocale(locale === 'fa' ? 'en' : 'fa')">
-            {{ $t('app.language') }}
-          </button>
         </div>
 
-        <div v-if="error" role="alert" class="alert alert-error alert-soft text-sm">{{ errorText(error) }}</div>
-
-        <form v-if="step === 'mobile'" class="flex flex-col gap-3" @submit.prevent="sendCode">
-          <label class="fieldset">
-            <span class="fieldset-legend">{{ $t('login.mobile') }}</span>
-            <input v-model="mobile" class="input ltr w-full" inputmode="tel" autocomplete="tel" required
-                   :placeholder="$t('login.mobileHint')" autofocus />
-          </label>
-          <button class="btn btn-primary" :disabled="busy">
-            <span v-if="busy" class="loading loading-spinner loading-sm" />{{ $t('login.sendCode') }}
-          </button>
-        </form>
-
-        <form v-else class="flex flex-col gap-3" @submit.prevent="signIn">
-          <label class="fieldset">
-            <span class="fieldset-legend">{{ $t('login.code') }}</span>
-            <input v-model="code" class="input ltr w-full text-center text-lg tracking-[0.5em]" inputmode="numeric"
-                   autocomplete="one-time-code" maxlength="6" required autofocus />
-            <span class="label">{{ $t('login.codeHint') }}</span>
-          </label>
-          <button class="btn btn-primary" :disabled="busy">
-            <span v-if="busy" class="loading loading-spinner loading-sm" />{{ $t('login.signIn') }}
-          </button>
-          <div class="flex justify-between text-sm">
-            <button type="button" class="link" @click="step = 'mobile'">{{ $t('login.changeNumber') }}</button>
-            <button type="button" class="link" :disabled="!canResend || busy" :class="{ 'opacity-50': !canResend }"
-                    @click="sendCode">
-              {{ canResend ? $t('login.resend') : $t('login.resendIn', { s: num(wait) }) }}
-            </button>
+        <div class="relative grid gap-10 xl:grid-cols-5 xl:items-center">
+          <div class="xl:col-span-3">
+            <h2 class="font-display text-4xl leading-tight text-balance xl:text-5xl">{{ $t('ui.heroTitle') }}</h2>
+            <p class="mt-5 max-w-md text-lg leading-relaxed text-base-content/70">{{ $t('ui.heroText') }}</p>
           </div>
-        </form>
-      </div>
+          <div class="card card-border animate-rise border-base-300 bg-base-100 shadow-level-2 motion-reduce:animate-none xl:col-span-2">
+            <div class="card-body items-center gap-3 p-6 text-center">
+              <span class="badge badge-accent badge-sm">{{ $t('patient.week', { n: num(DEMO_WEEK) }) }}</span>
+              <ProgressRing :fraction="DEMO_WEEK / TOTAL_WEEKS" :size="132" :thickness="12">
+                <span class="font-display text-4xl tabular-nums">{{ num(DEMO_WEEK) }}</span>
+                <span class="mt-1 text-xs text-base-content/60">{{ $t('ui.ofWeeks') }}</span>
+              </ProgressRing>
+              <div class="text-sm font-bold">{{ $t('ui.trimester2') }}</div>
+              <div class="text-xs text-base-content/60">{{ $t('ui.weeksLeft', { n: num(TOTAL_WEEKS - DEMO_WEEK) }) }}</div>
+            </div>
+          </div>
+        </div>
+
+        <p class="relative flex items-center gap-2 text-sm text-base-content/60">
+          <AppIcon name="shieldCheck" class="size-4 text-primary" />{{ $t('ui.heroSecure') }}
+        </p>
+      </aside>
+
+      <main class="flex items-center justify-center">
+        <div class="card card-border w-full max-w-md rounded-3xl border-base-300 bg-base-100 shadow-level-2">
+          <div class="card-body gap-6 p-6 sm:p-8">
+            <div class="flex items-center justify-between gap-4">
+              <div class="flex items-center gap-3 lg:invisible">
+                <BrandMark />
+                <span class="font-bold">{{ $t('app.name') }}</span>
+              </div>
+              <button class="btn btn-ghost btn-sm border border-base-300 px-3" @click="setLocale(locale === 'fa' ? 'en' : 'fa')">
+                <AppIcon name="globe" class="size-4" />{{ $t('app.language') }}
+              </button>
+            </div>
+
+            <div>
+              <h1 class="font-display text-2xl text-balance sm:text-3xl">{{ $t('login.title') }}</h1>
+              <p class="mt-2 text-sm leading-relaxed text-base-content/60">{{ $t('login.notStaff') }}</p>
+            </div>
+
+            <div v-if="error" role="alert" class="alert alert-error alert-soft text-sm">{{ errorText(error) }}</div>
+
+            <form v-if="step === 'mobile'" class="flex flex-col gap-4" @submit.prevent="sendCode">
+              <fieldset class="fieldset">
+                <legend class="fieldset-legend">{{ $t('login.mobile') }}</legend>
+                <label class="input input-lg w-full">
+                  <AppIcon name="phone" class="size-5 opacity-50" />
+                  <input v-model="mobile" class="ltr grow" inputmode="tel" autocomplete="tel" required
+                         :placeholder="$t('login.mobileHint')" autofocus />
+                </label>
+              </fieldset>
+              <button class="btn btn-primary btn-lg btn-block" :disabled="busy">
+                <span v-if="busy" class="loading loading-spinner loading-sm" />{{ $t('login.sendCode') }}
+                <AppIcon name="chevron" class="size-4 rtl:rotate-180" />
+              </button>
+            </form>
+
+            <form v-else class="flex flex-col gap-4" @submit.prevent="signIn">
+              <fieldset class="fieldset">
+                <legend class="fieldset-legend">{{ $t('login.code') }}</legend>
+                <label class="otp otp-lg" dir="ltr">
+                  <span v-for="n in CODE_LENGTH" :key="n" />
+                  <input ref="codeInput" v-model="code" type="text" autocomplete="one-time-code" inputmode="numeric"
+                         :maxlength="CODE_LENGTH" :pattern="`[0-9۰-۹]{${CODE_LENGTH}}`" required />
+                </label>
+                <p class="label">{{ $t('ui.codeSentTo', { mobile: formatMobile(mobile) }) }} {{ $t('login.codeHint') }}</p>
+              </fieldset>
+              <button class="btn btn-primary btn-lg btn-block" :disabled="busy || code.length < CODE_LENGTH">
+                <span v-if="busy" class="loading loading-spinner loading-sm" />{{ $t('login.signIn') }}
+              </button>
+              <div class="flex justify-between">
+                <button type="button" class="btn btn-ghost btn-sm" @click="changeNumber">{{ $t('login.changeNumber') }}</button>
+                <button type="button" class="btn btn-ghost btn-sm" :disabled="!canResend || busy" @click="sendCode">
+                  {{ canResend ? $t('login.resend') : $t('login.resendIn', { s: num(wait) }) }}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </main>
     </div>
   </div>
 </template>

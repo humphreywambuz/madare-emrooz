@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web-panel-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "web-panel", "run", "dev", "--", "--port", "5173", "--strictPort"],
+      "env": { "VITE_BACKEND_URL": "http://localhost:8080" },
+      "port": 5173
+    },
+    {
+      "name": "mother-app-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "mother-app", "run", "dev", "--", "--port", "5174", "--strictPort"],
+      "env": { "VITE_BACKEND_URL": "http://localhost:8080" },
+      "port": 5174
+    }
+  ]
+}

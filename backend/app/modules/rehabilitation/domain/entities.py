@@ -57,14 +57,22 @@ class RehabProfile:
     specialist_visit_completed: bool = False
     specialist_visit_at: datetime | None = None
 
-    def answer(self, answers: dict[str, Any]) -> None:
-        """Replace her questionnaire answers; the visit and imaging set by staff are kept."""
+    def answer(self, answers: dict[str, Any]) -> bool:
+        """Replace her questionnaire answers; the visit and imaging set by staff are kept.
+
+        Returns whether any answer changed.
+        """
         unknown = set(answers) - set(COMMON_QUESTIONS) - ALL_SUBCATEGORY_QUESTIONS
         if unknown:
             raise ValidationError(f"Unknown questions: {', '.join(sorted(unknown))}.")
+        before = self._answers()
         for name in (*COMMON_QUESTIONS, *ALL_SUBCATEGORY_QUESTIONS):
             setattr(self, name, answers.get(name))
         self.validate()
+        return self._answers() != before
+
+    def _answers(self) -> dict[str, Any]:
+        return {name: getattr(self, name) for name in (*COMMON_QUESTIONS, *ALL_SUBCATEGORY_QUESTIONS)}
 
     def validate(self) -> None:
         if not 1 <= self.pain_level <= 10:

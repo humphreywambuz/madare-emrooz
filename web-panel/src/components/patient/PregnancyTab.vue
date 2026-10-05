@@ -4,8 +4,10 @@ import { useI18n } from 'vue-i18n'
 
 import { patients } from '@/api/endpoints'
 import type { PatientRecord } from '@/api/types'
+import AppIcon from '@/components/AppIcon.vue'
 import DateInput from '@/components/DateInput.vue'
 import ModalDialog from '@/components/ModalDialog.vue'
+import SectionCard from '@/components/SectionCard.vue'
 import { useAction } from '@/utils/useAction'
 import { useFormat } from '@/utils/useFormat'
 
@@ -52,33 +54,40 @@ async function save() {
 </script>
 
 <template>
-  <p v-if="!p" class="text-base-content/60">{{ $t('pregnancy.none') }}</p>
-  <div v-else class="flex flex-col gap-5">
-    <div class="flex flex-wrap items-end justify-between gap-3 rounded-box bg-base-200 p-4">
-      <div>
-        <div class="text-sm text-base-content/60">{{ $t('pregnancy.estimated_due_date') }}</div>
-        <div class="text-xl font-bold">{{ date(p.estimated_due_date) }}</div>
-        <div class="text-sm text-base-content/70">
-          {{ $t(`pregnancy.source.${p.due_date_source}`) }}
-          <span v-if="p.due_date_corrected_at"> · {{ dateTime(p.due_date_corrected_at) }}</span>
+  <SectionCard v-if="!p"><p class="text-sm text-base-content/60">{{ $t('pregnancy.none') }}</p></SectionCard>
+  <div v-else class="flex flex-col gap-6">
+    <SectionCard>
+      <div class="flex flex-wrap items-center gap-4">
+        <span class="grid size-12 place-items-center rounded-xl bg-accent/40 text-accent-content">
+          <AppIcon name="calendar" class="size-6" />
+        </span>
+        <div class="min-w-0 flex-1">
+          <h2 class="text-xs font-semibold text-base-content/60">{{ $t('pregnancy.estimated_due_date') }}</h2>
+          <div class="font-display text-2xl">{{ date(p.estimated_due_date) }}</div>
+          <p class="text-xs text-base-content/60">
+            {{ $t(`pregnancy.source.${p.due_date_source}`) }}
+            <template v-if="p.due_date_corrected_at">، {{ dateTime(p.due_date_corrected_at) }}</template>
+          </p>
         </div>
+        <button class="btn btn-outline btn-sm" @click="start"><AppIcon name="pencil" class="size-4" />{{ $t('pregnancy.correct') }}</button>
       </div>
-      <button class="btn btn-sm" @click="start">{{ $t('pregnancy.correct') }}</button>
-    </div>
-    <FieldList :rows="rows" />
+    </SectionCard>
+    <SectionCard :title="$t('patient.tabs.pregnancy')">
+      <FieldList :rows="rows" />
+    </SectionCard>
 
     <ModalDialog v-model:open="open" :title="$t('pregnancy.correctTitle')">
-      <form class="flex flex-col gap-3" @submit.prevent="save">
-        <p class="text-sm text-base-content/70">{{ $t('pregnancy.correctHelp') }}</p>
+      <form class="flex flex-col gap-2" @submit.prevent="save">
+        <p class="text-sm leading-relaxed text-base-content/60">{{ $t('pregnancy.correctHelp') }}</p>
         <div v-if="error" role="alert" class="alert alert-error alert-soft text-sm">{{ errorText(error) }}</div>
-        <label class="fieldset">
-          <span class="fieldset-legend">{{ $t('pregnancy.estimated_due_date') }}</span>
+        <fieldset class="fieldset">
+          <legend class="fieldset-legend">{{ $t('pregnancy.estimated_due_date') }}</legend>
           <DateInput v-model="dueDate" :years-back="0" :years-ahead="1" required />
-        </label>
-        <label class="fieldset">
-          <span class="fieldset-legend">{{ $t('pregnancy.reason') }}</span>
+        </fieldset>
+        <fieldset class="fieldset">
+          <legend class="fieldset-legend">{{ $t('pregnancy.reason') }}</legend>
           <input v-model="reason" class="input w-full" maxlength="500" :placeholder="$t('pregnancy.reasonPlaceholder')" />
-        </label>
+        </fieldset>
         <div class="modal-action">
           <button type="button" class="btn" @click="open = false">{{ $t('app.cancel') }}</button>
           <button class="btn btn-primary" :disabled="busy || !dueDate">{{ $t('app.save') }}</button>
