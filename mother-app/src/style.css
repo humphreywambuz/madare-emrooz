@@ -1,0 +1,125 @@
+@import "tailwindcss";
+@plugin "daisyui" {
+  themes: light --default, dark --prefersdark;
+}
+
+/*
+ * The "Nurture" design system from the UI/UX team, on daisyUI's semantic tokens: growth green,
+ * a warm complementary palette, a cool-green canvas with white surfaces, organic radii, soft shadows.
+ */
+@plugin "daisyui/theme" {
+  name: "light";
+  default: true;
+  prefersdark: false;
+  color-scheme: light;
+  --color-base-100: #ffffff;
+  --color-base-200: #f3f7f4;
+  --color-base-300: #d8e3dd;
+  --color-base-content: #18332a;
+  --color-primary: #26845f;
+  --color-primary-content: #ffffff;
+  --color-secondary: #55b8ae;
+  --color-secondary-content: #0b2a27;
+  --color-accent: #f6d985;
+  --color-accent-content: #3d2e00;
+  --color-neutral: #194638;
+  --color-neutral-content: #e3eee9;
+  --color-info: #347a98;
+  --color-info-content: #ffffff;
+  --color-success: #28835f;
+  --color-success-content: #ffffff;
+  --color-warning: #9b6a00;
+  --color-warning-content: #ffffff;
+  --color-error: #b64e4d;
+  --color-error-content: #ffffff;
+  --radius-selector: 9999px;
+  --radius-field: 0.75rem;
+  --radius-box: 1rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+@plugin "daisyui/theme" {
+  name: "dark";
+  default: false;
+  prefersdark: true;
+  color-scheme: dark;
+  --color-base-100: #17231f;
+  --color-base-200: #0d1613;
+  --color-base-300: #344840;
+  --color-base-content: #e3eee9;
+  --color-primary: #75cba2;
+  --color-primary-content: #0d1613;
+  --color-secondary: #7fd0c7;
+  --color-secondary-content: #0b2a27;
+  --color-accent: #f6d985;
+  --color-accent-content: #3d2e00;
+  --color-neutral: #28503f;
+  --color-neutral-content: #e3eee9;
+  --color-info: #8cc3dc;
+  --color-info-content: #0d1613;
+  --color-success: #75cba2;
+  --color-success-content: #0d1613;
+  --color-warning: #e6bd5e;
+  --color-warning-content: #2a1f00;
+  --color-error: #e8908a;
+  --color-error-content: #2b0c0b;
+  --radius-selector: 9999px;
+  --radius-field: 0.75rem;
+  --radius-box: 1rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+@theme {
+  --font-sans: "Vazirmatn Variable", Vazirmatn, Tahoma, ui-sans-serif, system-ui, sans-serif;
+
+  --shadow-level-1: 0 1px 2px color-mix(in oklab, var(--color-base-content) 6%, transparent),
+    0 2px 6px color-mix(in oklab, var(--color-base-content) 4%, transparent);
+  --shadow-level-2: 0 4px 12px color-mix(in oklab, var(--color-base-content) 8%, transparent);
+  --shadow-level-3: 0 8px 24px color-mix(in oklab, var(--color-base-content) 10%, transparent);
+
+  --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --animate-rise: rise 0.5s var(--ease-emphasized) both;
+  --animate-ring: ring-fill 0.9s var(--ease-emphasized) both;
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes ring-fill {
+    from { stroke-dashoffset: var(--ring-length); }
+    to { stroke-dashoffset: var(--ring-offset); }
+  }
+}
+
+html { font-feature-settings: "ss01"; }
+body { background-color: var(--color-base-200); }
+
+/* Buttons are pills; fields keep the 12 px radius. Joined buttons keep their shared corners. */
+.btn:not(.join-item) { border-radius: var(--radius-selector); }
+
+/* Headings: one family at a heavier weight, tightly tracked. */
+@utility font-display {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* Phone numbers, codes and national IDs read left to right even in Persian text. */
+@utility ltr {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* Screens fade and rise into place over the standard 300 ms. */
+.page-enter-active, .page-leave-active { transition: opacity 0.3s var(--ease-emphasized), transform 0.3s var(--ease-emphasized); }
+.page-enter-from { opacity: 0; transform: translateY(8px); }
+.page-leave-to { opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .page-enter-from { transform: none; }
+}
