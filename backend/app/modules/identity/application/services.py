@@ -120,6 +120,7 @@ class AuthService:
         """Send a code. The response is the same whether or not the number has an
         account, so the endpoint cannot be used to discover who is registered."""
         mobile = normalize_iranian_mobile(raw_mobile)
+        self._otps.lock_sending(mobile, context.ip_address)
         now = self._now()
         self._enforce_send_limits(mobile, context.ip_address, now)
 
@@ -176,7 +177,9 @@ class AuthService:
         code = to_ascii_digits(raw_code or "").strip()
         now = self._now()
 
-        challenge = self._otps.latest_for_mobile(mobile)
+        # Locked until commit: parallel guesses wait their turn, so each one is counted and
+        # the code can't be used twice.
+        challenge = self._otps.latest_for_mobile(mobile, lock=True)
         if challenge is None or challenge.consumed_at is not None or challenge.is_expired(now):
             raise ValidationError(
                 "This code has expired. Request a new one.", details={"reason": "expired"}

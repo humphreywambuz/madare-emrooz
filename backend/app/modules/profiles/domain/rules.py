@@ -9,8 +9,12 @@ def age_on(birth_date: date, today: date) -> int:
 
 
 def rh_incompatibility_risk(mother: BloodType | None, father: BloodType | None) -> bool:
-    """Rh-negative mother with an Rh-positive father (candidate for RhoGAM)."""
-    return bool(mother and father and mother.is_rh_negative and not father.is_rh_negative)
+    """Rh-negative mother whose baby may be Rh-positive (candidate for RhoGAM).
+
+    Only a known Rh-negative father rules it out: when his blood type is not entered,
+    she is flagged, because clinically an unknown father is treated as Rh-positive.
+    """
+    return bool(mother and mother.is_rh_negative and not (father and father.is_rh_negative))
 
 
 def is_valid_national_code(code: str) -> bool:

@@ -7,6 +7,7 @@ from datetime import date, datetime, timezone
 from app.modules.audit.application.trail import AuditEvent, AuditTrail
 from app.modules.audit.domain.enums import AuditEventType
 from app.modules.pregnancy.domain.partner import PartnerLink, parse_partner_token, partner_token
+from app.shared.application.clock import clinic_today
 from app.shared.application.context import Actor, RequestContext
 from app.shared.application.unit_of_work import UnitOfWork
 from app.shared.domain.errors import NotFoundError, ValidationError
@@ -39,7 +40,7 @@ class PartnerService:
         audit: AuditTrail,
         uow: UnitOfWork,
         secret_key: str,
-        today: Callable[[], date] = date.today,
+        today: Callable[[], date] = clinic_today,
         now: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
     ):
         self._links = links

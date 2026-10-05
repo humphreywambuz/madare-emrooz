@@ -108,7 +108,12 @@ class Pregnancy:
             raise ValidationError("This pregnancy has already ended.")
 
     def gestational_age_days(self, on: date) -> int:
-        return PREGNANCY_LENGTH_DAYS - (self.estimated_due_date - on).days
+        """Days of pregnancy, never below zero.
+
+        Counted back from the due date, so a long cycle (due date moved later) right after
+        the LMP would otherwise give a negative age, e.g. "week -3" on the partner page.
+        """
+        return max(PREGNANCY_LENGTH_DAYS - (self.estimated_due_date - on).days, 0)
 
     def gestational_week(self, on: date) -> int:
         """Completed weeks of pregnancy; derived, not stored, so it never goes stale."""

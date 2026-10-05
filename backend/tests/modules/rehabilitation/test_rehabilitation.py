@@ -36,3 +36,17 @@ def test_surgery_name_required(session, make_user):
     session.add(rehab(make_user().id, had_related_surgery=True))
     with pytest.raises(IntegrityError):
         session.flush()
+
+
+def test_answer_reports_whether_anything_changed():
+    import uuid
+
+    from app.modules.rehabilitation.domain.entities import RehabProfile
+
+    answers = {
+        "subcategory": RehabSubcategory.YOGA_MEDITATION, "pain_level": 3,
+        "had_related_surgery": False, "uses_pain_medication": False,
+    }
+    profile = RehabProfile.from_answers(uuid.uuid4(), answers)
+    assert profile.answer(dict(answers)) is False
+    assert profile.answer({**answers, "pain_level": 7}) is True

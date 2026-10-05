@@ -445,6 +445,23 @@ class ClinicalService:
         self._approvals.save(approval)
         self._commit(AuditEventType.APPROVAL_REVOKED, actor, patient_id, "care_approval", approval.id)
 
+    def withdraw_after_new_answers(self, actor: Actor, scope: ApprovalScope) -> bool:
+        """She changed the answers a doctor approved her plan on, so the approval no longer
+        covers them. Runs inside her save (no commit); returns whether one was withdrawn."""
+        approval = self._approvals.active(actor.user_id, scope)
+        if approval is None:
+            return False
+        approval.revoke(actor.user_id, self._now())
+        self._approvals.save(approval)
+        self._audit.record(
+            _audit_event(
+                AuditEventType.APPROVAL_REVOKED, actor, patient_id=actor.user_id,
+                resource_type="care_approval", resource_id=approval.id,
+                details={"reason": "answers_changed"},
+            )
+        )
+        return True
+
     def _require_doctor(self, actor: Actor) -> None:
         if actor.role != UserRole.DOCTOR:
             raise PermissionDeniedError("Only doctors can approve a plan.")

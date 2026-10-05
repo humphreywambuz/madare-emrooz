@@ -59,18 +59,31 @@ class SqlAlchemyOtpRepository:
     def __init__(self, session: OrmSession):
         self._session = session
 
-    def latest_for_mobile(self, mobile: str) -> OtpChallenge | None:
-        row = self._session.scalar(
+    def latest_for_mobile(self, mobile: str, *, lock: bool = False) -> OtpChallenge | None:
+        query = (
             sa.select(OtpCodeModel)
             .where(OtpCodeModel.mobile == mobile)
             .order_by(OtpCodeModel.created_at.desc())
             .limit(1)
         )
+        if lock:
+            # Re-read the row under the lock, not a copy loaded earlier in this session.
+            query = query.with_for_update().execution_options(populate_existing=True)
+        row = self._session.scalar(query)
         if row is None:
             return None
         values = {f: getattr(row, f) for f in _OTP_FIELDS}
         values["request_ip"] = _ip(values["request_ip"])
         return OtpChallenge(**values)
+
+    def lock_sending(self, mobile: str, ip: str | None) -> None:
+        # Transaction-level advisory locks, released at commit. Always number first, then
+        # network, so two requests never wait on each other in opposite order.
+        for key in (f"otp:mobile:{mobile}", f"otp:ip:{ip}" if ip else None):
+            if key:
+                self._session.execute(
+                    sa.text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"), {"key": key}
+                )
 
     def count_for_mobile_since(self, mobile: str, since: datetime) -> int:
         return self._session.scalar(

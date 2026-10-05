@@ -190,6 +190,9 @@ def rehab_service() -> RehabService:
         has_plan_approval=lambda patient_id: approvals.active(
             patient_id, ApprovalScope.REHABILITATION_PLAN
         ) is not None,
+        withdraw_plan_approval=lambda actor: clinical_service().withdraw_after_new_answers(
+            actor, ApprovalScope.REHABILITATION_PLAN
+        ),
         require_document_of=document_service().require_document_of,
         access=care_team_service(),
         audit=SqlAlchemyAuditTrail(session),

@@ -76,3 +76,36 @@ def test_imaging_must_be_her_document(client, signed_in):
     client.put("/api/v1/rehab-profile", json=POSTPARTUM, headers=mother)
     url = f"/api/v1/staff/patients/{mother_id}/rehab-profile/imaging"
     assert client.put(url, json={"document_id": str(uuid.uuid4())}, headers=midwife).status_code == 404
+
+
+def test_changing_her_answers_withdraws_the_doctors_approval(client, signed_in):
+    import sqlalchemy as sa
+
+    from app.extensions import db
+    from app.modules.audit.infrastructure.models import AuditLogModel
+
+    _, doctor = signed_in(UserRole.DOCTOR)
+    mother_id, mother = signed_in()
+    client.put("/api/v1/rehab-profile", json=POSTPARTUM, headers=mother)
+    client.post(f"/api/v1/staff/patients/{mother_id}/rehab-profile/specialist-visit", headers=doctor)
+    approvals = f"/api/v1/staff/patients/{mother_id}/approvals"
+    assert client.post(approvals, json={"scope": "rehabilitation_plan"}, headers=doctor).status_code == 201
+
+    def put(**changes):
+        return client.put("/api/v1/rehab-profile", json={**POSTPARTUM, **changes}, headers=mother).get_json()
+
+    assert client.get("/api/v1/rehab-profile", headers=mother).get_json()["is_advanced_locked"] is False
+    # Saving the same answers again changes nothing.
+    assert put()["is_advanced_locked"] is False
+
+    # Riskier answers than the ones the doctor approved: locked again until a doctor re-approves.
+    changed = put(pain_level=9, has_pelvic_warning_signs=True)
+    assert changed["is_advanced_locked"] is True and changed["specialist_visit_completed"] is True
+    revoked = db.session.scalars(
+        sa.select(AuditLogModel).where(AuditLogModel.event_type == "approval_revoked")
+    ).all()
+    assert len(revoked) == 1 and revoked[0].actor_id == mother_id
+    assert revoked[0].details == {"reason": "answers_changed"}
+
+    assert client.post(approvals, json={"scope": "rehabilitation_plan"}, headers=doctor).status_code == 201
+    assert client.get("/api/v1/rehab-profile", headers=mother).get_json()["is_advanced_locked"] is False

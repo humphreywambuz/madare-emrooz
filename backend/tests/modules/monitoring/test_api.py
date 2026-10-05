@@ -1,13 +1,14 @@
 """Bleeding reports, red alerts and the midwife's daily log over HTTP."""
-from datetime import date, timedelta
+from datetime import timedelta
 
 import sqlalchemy as sa
 
 from app.extensions import db
 from app.modules.audit.infrastructure.models import AuditLogModel
 from app.modules.identity.domain.enums import UserRole
+from app.shared.application.clock import clinic_today
 
-LMP = (date.today() - timedelta(weeks=20)).isoformat()
+LMP = (clinic_today() - timedelta(weeks=20)).isoformat()
 
 
 def pregnant_mother(client, signed_in, midwife_id=None):

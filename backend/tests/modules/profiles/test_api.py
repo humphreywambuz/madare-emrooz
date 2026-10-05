@@ -1,10 +1,11 @@
 """Onboarding over HTTP: profile, medical history and the home screen."""
-from datetime import date, timedelta
+from datetime import timedelta
 
 import sqlalchemy as sa
 
 from app.extensions import db
 from app.modules.audit.infrastructure.models import AuditLogModel
+from app.shared.application.clock import clinic_today
 
 PROFILE = {
     "first_name": "سارا",
@@ -71,7 +72,7 @@ def test_profile_validation(client, signed_in):
     assert put(national_code="0012345678").status_code == 422  # wrong check digit
     assert put(national_code="1111111111").status_code == 422
     assert put(reproductive_status=None).status_code == 422  # pregnancy path needs a status
-    assert put(birth_date=(date.today() + timedelta(days=1)).isoformat()).status_code == 422
+    assert put(birth_date=(clinic_today() + timedelta(days=1)).isoformat()).status_code == 422
     assert put(height_cm=300).status_code == 422
     assert put(unknown_field=1).status_code == 422
 
@@ -102,7 +103,7 @@ def test_medical_history(client, signed_in):
 def test_delivery_switches_home_to_postpartum(client, signed_in):
     _, headers = signed_in()
     client.put("/api/v1/profile", json=PROFILE, headers=headers)
-    lmp = (date.today() - timedelta(weeks=39)).isoformat()
+    lmp = (clinic_today() - timedelta(weeks=39)).isoformat()
     client.post("/api/v1/pregnancies", json={"lmp_date": lmp, "conception_type": "natural"}, headers=headers)
     ended = client.post("/api/v1/pregnancies/current/end", json={"status": "delivered"}, headers=headers)
     assert ended.status_code == 200

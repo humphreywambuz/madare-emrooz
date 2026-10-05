@@ -16,7 +16,14 @@ class UserRepository(Protocol):
 
 
 class OtpRepository(Protocol):
-    def latest_for_mobile(self, mobile: str) -> OtpChallenge | None: ...
+    def latest_for_mobile(self, mobile: str, *, lock: bool = False) -> OtpChallenge | None:
+        """lock: hold the row until commit, so parallel guesses are counted one by one."""
+        ...
+
+    def lock_sending(self, mobile: str, ip: str | None) -> None:
+        """Serialise code requests for this number and network until commit, so parallel
+        requests can't all pass the resend limits before any of them is stored."""
+        ...
 
     def count_for_mobile_since(self, mobile: str, since: datetime) -> int: ...
 

@@ -3,6 +3,7 @@ from datetime import date
 from app.modules.profiles.domain.enums import BloodType, JoinGoal
 from app.modules.profiles.domain.rules import age_on, rh_incompatibility_risk
 from app.modules.profiles.infrastructure.models import MedicalHistoryModel, ProfileModel
+from app.shared.application.clock import clinic_today
 
 
 def test_age_on():
@@ -15,6 +16,10 @@ def test_rh_incompatibility_risk():
     assert rh_incompatibility_risk(BloodType.O_NEG, BloodType.A_NEG) is False
     assert rh_incompatibility_risk(BloodType.O_POS, BloodType.A_POS) is False
     assert rh_incompatibility_risk(None, BloodType.A_POS) is False
+    # Spouse's type not entered (the common case): treated as Rh-positive, so she is flagged.
+    assert rh_incompatibility_risk(BloodType.O_NEG, None) is True
+    assert rh_incompatibility_risk(BloodType.O_POS, None) is False
+    assert rh_incompatibility_risk(None, None) is False
 
 
 def test_profile_and_medical_history(session, make_user):
@@ -34,7 +39,7 @@ def test_profile_and_medical_history(session, make_user):
     session.flush()
 
     assert profile.rh_incompatibility_risk is True
-    assert profile.age == age_on(date(1995, 6, 15), date.today())
+    assert profile.age == age_on(date(1995, 6, 15), clinic_today())
     assert history.has_hypertension is None  # not answered
 
 

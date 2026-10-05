@@ -174,6 +174,10 @@ Protections:
   hour. Past a limit the API returns 429 with `Retry-After`.
 - **The request-code response** is the same whether or not the number has an account.
 - **Failed attempts** are committed before the error is returned, so they always count.
+- **Parallel requests** can't get around these limits. Checking a code locks its row
+  (`SELECT … FOR UPDATE`), so simultaneous guesses are counted one by one and a code signs in
+  once. Requesting a code takes PostgreSQL advisory locks on the number and the network until
+  the new code is stored, so simultaneous requests can't all pass the resend limits.
 - **Audit log:** every successful and failed sign-in is written to `audit_logs`.
 - **Refresh tokens** are stored only as a SHA-256 hash and replaced on every use.
 

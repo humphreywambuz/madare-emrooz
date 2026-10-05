@@ -60,7 +60,8 @@ python scripts/generate_erd.py
   dashboard; trying to conceive → a simple page until later phases; postpartum → the fitness and
   postpartum rehabilitation paths. Ending a pregnancy as delivered sets her status to postpartum.
 - **Age is stored as `birth_date`.** A stored age would go out of date; `profiles.domain.rules.age_on` calculates it.
-- The father's blood type is kept for Rh incompatibility checks. See
+- The father's blood type is kept for Rh incompatibility checks. An Rh-negative mother is flagged
+  for RhoGAM unless his type is known to be Rh-negative; a blank type counts as Rh-positive. See
   `profiles.domain.rules.rh_incompatibility_risk`.
 
 ### 3. `medical_histories` (one per user)
@@ -158,6 +159,10 @@ python scripts/generate_erd.py
 - `rehabilitation.domain.policies.is_advanced_locked` stays **true** until the visit has happened **and** there is
   an active `care_approvals` row with scope `rehabilitation_plan`. Because it is calculated rather
   than stored, the lock cannot disagree with the approval history.
+- When she changes her questionnaire answers, the active approval is revoked in the same
+  transaction (`revoked_by_id` is her own id, audited with `reason: answers_changed`): the doctor
+  approved her earlier answers, so the plan locks again until a doctor approves the new ones. The
+  recorded visit is kept.
 
 ## Conventions
 - Primary keys are UUIDs (`gen_random_uuid()`), except `audit_logs`, which uses a `BIGINT`

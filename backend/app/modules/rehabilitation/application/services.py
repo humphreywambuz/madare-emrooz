@@ -34,6 +34,8 @@ class RehabService:
         *,
         profiles: RehabProfileRepository,
         has_plan_approval: Callable[[uuid.UUID], bool],
+        # Withdraws a doctor's approval of her plan, inside the caller's unit of work.
+        withdraw_plan_approval: Callable[[Actor], object],
         require_document_of: Callable[[uuid.UUID, uuid.UUID], object],
         access: PatientAccess,
         audit: AuditTrail,
@@ -42,6 +44,7 @@ class RehabService:
     ):
         self._profiles = profiles
         self._has_plan_approval = has_plan_approval
+        self._withdraw_plan_approval = withdraw_plan_approval
         self._require_document_of = require_document_of
         self._access = access
         self._audit = audit
@@ -60,8 +63,10 @@ class RehabService:
         created = profile is None
         if created:
             profile = RehabProfile.from_answers(actor.user_id, answers)
-        else:
-            profile.answer(answers)
+        elif profile.answer(answers):
+            # The doctor approved the plan for her earlier answers, not these: advanced
+            # exercises lock again until a doctor reviews and approves the new ones.
+            self._withdraw_plan_approval(actor)
         self._profiles.save(profile)
         self._uow.commit()
         return self._view(profile), created

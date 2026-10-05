@@ -1,6 +1,8 @@
 from datetime import date, timedelta
 
-LMP = (date.today() - timedelta(weeks=10)).isoformat()
+from app.shared.application.clock import clinic_today
+
+LMP = (clinic_today() - timedelta(weeks=10)).isoformat()
 
 
 def test_requires_sign_in(client):
@@ -51,7 +53,7 @@ def test_validation_errors(client, signed_in):
     assert bad_body.status_code == 422
     assert bad_body.get_json()["error"]["details"]["fields"][0]["field"] == "conception_type"
 
-    future = (date.today() + timedelta(days=3)).isoformat()
+    future = (clinic_today() + timedelta(days=3)).isoformat()
     bad_rule = client.post(
         "/api/v1/pregnancies", json={"lmp_date": future, "conception_type": "natural"}, headers=headers
     )
@@ -96,7 +98,7 @@ def _audit(event):
 def test_mother_corrects_her_lmp_without_ending_the_pregnancy(client, signed_in):
     _, headers = signed_in()
     created = client.post("/api/v1/pregnancies", json={"lmp_date": LMP, "conception_type": "natural"}, headers=headers).get_json()
-    fixed_lmp = (date.today() - timedelta(weeks=12)).isoformat()
+    fixed_lmp = (clinic_today() - timedelta(weeks=12)).isoformat()
     fixed = client.patch("/api/v1/pregnancies/current", json={"lmp_date": fixed_lmp, "care_provider_type": "midwife"}, headers=headers)
     assert fixed.status_code == 200, fixed.get_json()
     body = fixed.get_json()
@@ -106,7 +108,7 @@ def test_mother_corrects_her_lmp_without_ending_the_pregnancy(client, signed_in)
     (event,) = _audit("record_updated")
     assert event.details["changed"] == ["care_provider_type", "lmp_date"]
 
-    future = (date.today() + timedelta(days=1)).isoformat()
+    future = (clinic_today() + timedelta(days=1)).isoformat()
     assert client.patch("/api/v1/pregnancies/current", json={"lmp_date": future}, headers=headers).status_code == 422
     assert client.patch("/api/v1/pregnancies/current", json={"lmp_date": None}, headers=headers).status_code == 422
     assert client.patch("/api/v1/pregnancies/current", json={"status": "ended"}, headers=headers).status_code == 422
@@ -119,7 +121,7 @@ def test_care_team_corrects_the_due_date_and_it_then_wins(client, signed_in):
     _, other_midwife = listed_midwife(client, signed_in)
     mother_id, mother = pregnant_mother(client, signed_in, midwife_id)  # 20 weeks by LMP
     url = f"/api/v1/staff/patients/{mother_id}/pregnancy/due-date"
-    ultrasound = (date.today() + timedelta(weeks=19)).isoformat()  # 21 weeks today
+    ultrasound = (clinic_today() + timedelta(weeks=19)).isoformat()  # 21 weeks today
 
     assert client.put(url, json={"estimated_due_date": ultrasound}, headers=other_midwife).status_code == 403
     corrected = client.put(url, json={"estimated_due_date": ultrasound, "reason": "NT scan"}, headers=midwife)
@@ -131,10 +133,10 @@ def test_care_team_corrects_the_due_date_and_it_then_wins(client, signed_in):
     assert event.details["reason"] == "NT scan" and event.details["due_date"]["to"] == ultrasound
 
     # Her later LMP fix keeps the clinician's due date.
-    client.patch("/api/v1/pregnancies/current", json={"lmp_date": (date.today() - timedelta(weeks=18)).isoformat()}, headers=mother)
+    client.patch("/api/v1/pregnancies/current", json={"lmp_date": (clinic_today() - timedelta(weeks=18)).isoformat()}, headers=mother)
     assert client.get("/api/v1/pregnancies/current", headers=mother).get_json()["estimated_due_date"] == ultrasound
 
-    too_far = (date.today() + timedelta(weeks=45)).isoformat()
+    too_far = (clinic_today() + timedelta(weeks=45)).isoformat()
     assert client.put(url, json={"estimated_due_date": too_far}, headers=midwife).status_code == 422
 
 
@@ -145,5 +147,5 @@ def test_due_date_correction_needs_an_active_pregnancy(client, signed_in):
     mother_id, mother = signed_in()
     client.put("/api/v1/my-midwife", json={"midwife_id": str(midwife_id)}, headers=mother)
     url = f"/api/v1/staff/patients/{mother_id}/pregnancy/due-date"
-    assert client.put(url, json={"estimated_due_date": date.today().isoformat()}, headers=midwife).status_code == 404
+    assert client.put(url, json={"estimated_due_date": clinic_today().isoformat()}, headers=midwife).status_code == 404
     assert client.patch("/api/v1/pregnancies/current", json={"conception_type": "assisted"}, headers=mother).status_code == 404

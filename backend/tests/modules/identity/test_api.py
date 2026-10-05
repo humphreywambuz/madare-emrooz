@@ -1,4 +1,8 @@
 """The sign-in flow over HTTP, against PostgreSQL."""
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
+
 import sqlalchemy as sa
 
 from app.extensions import db
@@ -128,3 +132,54 @@ def test_deactivated_user_is_signed_out_everywhere(app, client):
     assert client.post(
         "/api/v1/auth/token/refresh", json={"refresh_token": tokens["refresh_token"]}
     ).status_code == 401
+
+
+def in_parallel(app, calls: int, request):
+    """Send the same request from several clients at the same moment."""
+    start = threading.Barrier(calls)
+
+    def one(_):
+        client = app.test_client()
+        start.wait()
+        return request(client)
+
+    with ThreadPoolExecutor(calls) as pool:
+        return list(pool.map(one, range(calls)))
+
+
+def test_parallel_requests_send_one_code(app, client, monkeypatch):
+    from app.modules.identity.application import services
+
+    # Widen the gap between checking the limits and storing the code, where requests race.
+    hash_code = services.hash_otp_code
+    monkeypatch.setattr(services, "hash_otp_code", lambda *a: (time.sleep(0.2), hash_code(*a))[1])
+    responses = in_parallel(app, 6, lambda c: c.post("/api/v1/auth/otp/request", json={"mobile": MOBILE}))
+    assert sorted(r.status_code for r in responses) == [202, 429, 429, 429, 429, 429]
+    assert len(app.extensions["sms_outbox"]) == 1
+
+
+def test_parallel_wrong_guesses_are_each_counted(app, client):
+    client.post("/api/v1/auth/otp/request", json={"mobile": MOBILE})
+    code = last_code(app)
+    wrong = "000000" if code != "000000" else "111111"
+    responses = in_parallel(
+        app, 9, lambda c: c.post("/api/v1/auth/otp/verify", json={"mobile": MOBILE, "code": wrong})
+    )
+    reasons = [r.get_json()["error"]["details"]["reason"] for r in responses]
+    assert reasons.count("wrong_code") == 5 and reasons.count("too_many_attempts") == 4
+    db.session.remove()
+    assert db.session.scalar(sa.select(OtpCodeModel.attempts)) == 5
+    # Locked: even the right code no longer works.
+    assert client.post("/api/v1/auth/otp/verify", json={"mobile": MOBILE, "code": code}).status_code == 422
+
+
+def test_a_code_signs_in_only_once_even_in_parallel(app, client):
+    client.post("/api/v1/auth/otp/request", json={"mobile": MOBILE})
+    code = last_code(app)
+    responses = in_parallel(
+        app, 4, lambda c: c.post("/api/v1/auth/otp/verify", json={"mobile": MOBILE, "code": code})
+    )
+    assert sorted(r.status_code for r in responses) == [200, 422, 422, 422]
+    db.session.remove()
+    assert db.session.scalar(sa.select(sa.func.count()).select_from(UserSessionModel)) == 1
+    assert db.session.scalar(sa.select(sa.func.count()).select_from(UserModel)) == 1
