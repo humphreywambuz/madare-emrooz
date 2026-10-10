@@ -357,6 +357,14 @@ from Kavenegar are logged without the API key.
 - **Uploads:** only JPEG, PNG and PDF, recognised from the file's bytes rather than its name, up to
   10 MB. Files are served with `X-Content-Type-Options: nosniff`.
 - **Containers:** the API runs as a non-root user, and the images contain no `.env` file or tests.
+- **Content-Security-Policy:**
+  - The panel and the mothers' app load only their own scripts, styles, fonts and API: no inline
+    scripts or styles, no other sites. Images may also be `data:` or `blob:`, and PDF previews a
+    `blob:` frame. Nothing may frame them. The policy is in each app's `nginx.conf.template`.
+  - API responses carry `default-src 'none'`, so JSON can never run as a page.
+  - The partner QR page allows only its own `<style>` block, by hash.
+  - Templates therefore use classes rather than `style="…"` attributes. Styles bound with
+    `:style` are fine, because Vue sets them from script.
 - **Panel:** in the browser, the access token is kept in memory only; the refresh token is in
   `localStorage`, shared by the tabs, which renew one at a time and sign out together.
   - Only the server ending the session signs staff out; a dropped connection or a server error

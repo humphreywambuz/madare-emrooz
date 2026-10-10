@@ -4,6 +4,8 @@ serialise the result. No business rules live here.
 Partner Mode: the mother makes a QR code (POST /partner-link). Her spouse scans it and
 opens /p/<token>, a page with the pregnancy week and due date; he doesn't sign in.
 """
+import base64
+import hashlib
 from dataclasses import asdict
 from pathlib import Path
 
@@ -27,6 +29,19 @@ from .schemas import (
 bp = Blueprint("pregnancy", __name__)
 
 _PARTNER_PAGE = (Path(__file__).with_name("partner_page.html")).read_text(encoding="utf-8")
+
+
+def _style_hash(page: str) -> str:
+    """CSP hash of the page's one <style> block, so it applies and nothing else can."""
+    style = page.split("<style>", 1)[1].split("</style>", 1)[0]
+    return "'sha256-" + base64.b64encode(hashlib.sha256(style.encode()).digest()).decode() + "'"
+
+
+# The page has no scripts, images or fonts of its own: only its stylesheet may apply.
+_PARTNER_PAGE_POLICY = (
+    f"default-src 'none'; style-src {_style_hash(_PARTNER_PAGE)}; "
+    "base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+)
 
 
 @bp.post("/api/v1/pregnancies")
@@ -109,7 +124,7 @@ def partner_page(token):
     try:
         view = partner_service().view(token, request_context())
     except NotFoundError:
-        return _no_store(render_template_string(_PARTNER_PAGE, view=None)), 404
+        return _partner_page(render_template_string(_PARTNER_PAGE, view=None), 404)
     html = render_template_string(
         _PARTNER_PAGE,
         view=view,
@@ -118,11 +133,17 @@ def partner_page(token):
         due_date=format_jalali(view.estimated_due_date),
         days_left=persian_digits(view.days_until_due),
     )
-    return _no_store(html)
+    return _partner_page(html)
 
 
 def _no_store(response):
     response = current_app.make_response(response)
     response.headers["Cache-Control"] = "no-store"
     response.headers["Referrer-Policy"] = "no-referrer"
+    return response
+
+
+def _partner_page(html: str, status: int = 200):
+    response = _no_store(current_app.make_response((html, status)))
+    response.headers["Content-Security-Policy"] = _PARTNER_PAGE_POLICY
     return response

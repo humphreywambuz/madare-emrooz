@@ -47,6 +47,8 @@ def test_spouse_sees_only_week_and_due_date(app, client, signed_in):
     assert page.status_code == 200
     html = page.get_data(as_text=True)
     assert "هفته ۲۴" in html and "۳ روز" in html and 'dir="rtl"' in html
+    assert_only_its_own_style_may_apply(page)
+    assert view.headers["Content-Security-Policy"].startswith("default-src 'none'")
 
     viewed = db.session.scalars(
         sa.select(AuditLogModel).where(AuditLogModel.event_type == "partner_link_viewed")
@@ -80,3 +82,23 @@ def test_link_stops_when_the_pregnancy_ends(client, signed_in):
 def test_forged_tokens_are_refused(client):
     assert client.get(f"/api/v1/partner/{uuid.uuid4().hex}{'A' * 22}").status_code == 404
     assert client.get("/p/not-a-token").status_code == 404
+
+
+def assert_only_its_own_style_may_apply(page):
+    """The partner page's policy allows exactly the <style> block it was rendered with."""
+    import base64
+    import hashlib
+
+    html = page.get_data(as_text=True)
+    style = html.split("<style>", 1)[1].split("</style>", 1)[0]
+    digest = base64.b64encode(hashlib.sha256(style.encode()).digest()).decode()
+    policy = page.headers["Content-Security-Policy"]
+    assert f"style-src 'sha256-{digest}'" in policy
+    assert "default-src 'none'" in policy and "frame-ancestors 'none'" in policy
+    assert "unsafe-inline" not in policy and "script-src" not in policy
+
+
+def test_inactive_code_page_has_the_same_policy(client):
+    page = client.get("/p/not-a-real-token")
+    assert page.status_code == 404
+    assert_only_its_own_style_may_apply(page)
