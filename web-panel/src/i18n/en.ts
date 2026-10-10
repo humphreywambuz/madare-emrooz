@@ -22,6 +22,10 @@ export default {
     next: 'Next',
     pageOf: 'Page {page} of {pages}',
     total: '{n} in total',
+    idleTitle: 'Still there?',
+    idleText: "There's been no activity for a while. To protect patients' records, you'll be signed out in {n} seconds.",
+    stay: 'Stay signed in',
+    idleSignedOut: 'You were signed out after {n} minutes without activity.',
   },
   nav: {
     alerts: 'Red alerts',

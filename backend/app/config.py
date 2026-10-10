@@ -20,6 +20,9 @@ class Config:
     # Short-lived access tokens; clients renew them with the refresh token.
     ACCESS_TOKEN_TTL_SECONDS = int(os.environ.get("ACCESS_TOKEN_TTL_SECONDS", 15 * 60))
     REFRESH_TOKEN_TTL_DAYS = int(os.environ.get("REFRESH_TOKEN_TTL_DAYS", 30))
+    # A refresh token already replaced ends the session (it may have been stolen), except
+    # within this many seconds of its replacement: a client retrying after a lost answer.
+    REFRESH_TOKEN_REUSE_GRACE_SECONDS = int(os.environ.get("REFRESH_TOKEN_REUSE_GRACE_SECONDS", 60))
 
     # "kavenegar" sends real SMS. "console" logs codes instead (development only).
     SMS_BACKEND = os.environ.get("SMS_BACKEND", "console")

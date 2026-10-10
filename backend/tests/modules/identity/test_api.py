@@ -48,9 +48,7 @@ def test_full_sign_in_flow(app, client):
     refreshed = client.post("/api/v1/auth/token/refresh", json={"refresh_token": tokens["refresh_token"]})
     assert refreshed.status_code == 200
     new_tokens = refreshed.get_json()
-    assert client.post(
-        "/api/v1/auth/token/refresh", json={"refresh_token": tokens["refresh_token"]}
-    ).status_code == 401  # rotated
+    assert new_tokens["refresh_token"] != tokens["refresh_token"]  # rotated
 
     assert client.post("/api/v1/auth/logout", json={"refresh_token": new_tokens["refresh_token"]}).status_code == 204
     assert client.post(
@@ -183,3 +181,19 @@ def test_a_code_signs_in_only_once_even_in_parallel(app, client):
     db.session.remove()
     assert db.session.scalar(sa.select(sa.func.count()).select_from(UserSessionModel)) == 1
     assert db.session.scalar(sa.select(sa.func.count()).select_from(UserModel)) == 1
+
+
+def test_a_stolen_refresh_token_ends_the_session(app, client, monkeypatch):
+    # No grace period, so the replaced token counts as reused straight away.
+    monkeypatch.setitem(app.config, "REFRESH_TOKEN_REUSE_GRACE_SECONDS", 0)
+    tokens = sign_in(app, client)
+    renewed = client.post("/api/v1/auth/token/refresh", json={"refresh_token": tokens["refresh_token"]}).get_json()
+    stolen = client.post("/api/v1/auth/token/refresh", json={"refresh_token": tokens["refresh_token"]})
+    assert stolen.status_code == 401
+    assert client.post(
+        "/api/v1/auth/token/refresh", json={"refresh_token": renewed["refresh_token"]}
+    ).status_code == 401
+    db.session.remove()
+    assert db.session.scalar(sa.select(UserSessionModel.revoked_at)) is not None
+    events = [e.value for e in db.session.scalars(sa.select(AuditLogModel.event_type))]
+    assert events == ["login_succeeded", "refresh_token_reused"]
