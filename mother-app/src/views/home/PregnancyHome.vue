@@ -54,7 +54,7 @@ const vitalText = (key: 'bp' | 'glucose' | 'weight') =>
 
       <div class="flex flex-col gap-4 p-4">
         <!-- Her progress, in the system's cover-card pattern: a mint card, the ring and the due date. -->
-        <section class="animate-rise relative overflow-hidden rounded-3xl bg-primary/10 p-5 motion-reduce:animate-none" style="animation-delay: 0.1s">
+        <section class="animate-rise relative overflow-hidden rounded-3xl bg-primary/10 p-5 motion-reduce:animate-none [animation-delay:0.1s]">
           <div class="pointer-events-none absolute -end-10 -bottom-12 size-40 rounded-full bg-accent/50" aria-hidden="true" />
           <div class="relative flex items-center gap-5">
             <ProgressRing :fraction="pregnancy.gestational_week / TOTAL_WEEKS" :size="124" :thickness="12"
@@ -73,7 +73,7 @@ const vitalText = (key: 'bp' | 'glucose' | 'weight') =>
         </section>
 
         <!-- The one thing she reports herself. -->
-        <SurfaceCard class="animate-rise motion-reduce:animate-none" style="animation-delay: 0.2s">
+        <SurfaceCard class="animate-rise motion-reduce:animate-none [animation-delay:0.2s]">
           <div class="card-body gap-3 p-5">
             <template v-if="!recentReport">
               <div class="flex items-start gap-3">
@@ -113,7 +113,7 @@ const vitalText = (key: 'bp' | 'glucose' | 'weight') =>
           <RouterLink to="/midwife" class="btn btn-sm btn-primary">{{ $t('home.chooseMidwife') }}</RouterLink>
         </div>
 
-        <section class="animate-rise motion-reduce:animate-none" style="animation-delay: 0.3s">
+        <section class="animate-rise motion-reduce:animate-none [animation-delay:0.3s]">
           <h2 class="px-1 text-base font-bold">{{ $t('home.vitalsTitle') }}</h2>
           <p v-if="!vitals.bp && vitals.glucose === null && vitals.weight === null" class="mt-1 px-1 text-sm leading-relaxed text-base-content/60">
             {{ $t('home.vitalsEmpty') }}
@@ -127,7 +127,7 @@ const vitalText = (key: 'bp' | 'glucose' | 'weight') =>
           </dl>
         </section>
 
-        <section class="animate-rise motion-reduce:animate-none" style="animation-delay: 0.4s">
+        <section class="animate-rise motion-reduce:animate-none [animation-delay:0.4s]">
           <h2 class="px-1 pb-2 text-base font-bold">{{ $t('home.quickActions') }}</h2>
           <SurfaceCard as="ul" class="list">
             <LinkRow to="/midwife" icon="stethoscope" :title="$t('nav.midwife')"

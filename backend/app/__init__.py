@@ -26,6 +26,7 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     from .modules.identity.infrastructure.user_status import is_user_active
     from .shared.api.auth import register_user_status_check
     from .shared.api.errors import register_error_handlers
+    from .shared.api.security import register_security_headers
 
     register_models()
     register_blueprints(app)
@@ -33,6 +34,7 @@ def create_app(config_class: type[Config] = Config) -> Flask:
 
     app.register_blueprint(health_bp)
     register_error_handlers(app)
+    register_security_headers(app)
     register_user_status_check(app, is_user_active)
 
     from .cli import register_commands

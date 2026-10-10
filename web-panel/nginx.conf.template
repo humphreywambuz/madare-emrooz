@@ -63,6 +63,11 @@ server {
         add_header X-Content-Type-Options "nosniff" always;
         add_header X-Frame-Options "DENY" always;
         add_header Referrer-Policy "same-origin" always;
+        # Only the app's own scripts, styles, fonts and API. Images may also be data: (the CSS
+        # icons, the QR code) or blob: (document previews). PDF previews are a blob: frame, and
+        # browsers show the PDF as plugin content that inherits this policy, hence object-src
+        # blob: (only the app's own scripts can make a blob: URL). Nothing may frame the app.
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-src blob:; object-src blob:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'" always;
         try_files $uri $uri/ /index.html;
     }
 }
