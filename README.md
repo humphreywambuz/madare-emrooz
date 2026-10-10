@@ -174,6 +174,7 @@ Backend-only settings, with defaults suitable for production:
 |---|---|---|
 | `ACCESS_TOKEN_TTL_SECONDS` | `900` | Access token lifetime (15 minutes). |
 | `REFRESH_TOKEN_TTL_DAYS` | `30` | Refresh token lifetime. |
+| `REFRESH_TOKEN_REUSE_GRACE_SECONDS` | `60` | A refresh token that was already replaced ends the session as possibly stolen, except within this many seconds of its replacement (a client retrying after a lost answer). |
 | `OTP_CODE_TTL_SECONDS` | `120` | How long an SMS code works. |
 | `OTP_RESEND_COOLDOWN_SECONDS` | `60` | Wait before another code to the same number. |
 | `OTP_MAX_PER_MOBILE_PER_HOUR` | `5` | Codes per number per hour. |
@@ -251,7 +252,8 @@ The mothers' app runs the same way from `mother-app/` (use `npm run dev -- --por
 2. `POST /auth/otp/verify {"mobile", "code"}`: returns a 15-minute `access_token`, a 30-day
    `refresh_token` and `is_new_user`.
 3. `POST /auth/token/refresh {"refresh_token"}`: returns new tokens. The old refresh token stops
-   working.
+   working. Presenting it again later ends the session (it may have been stolen); only a retry
+   within `REFRESH_TOKEN_REUSE_GRACE_SECONDS` of the renewal, after a lost answer, still works.
 4. `POST /auth/logout {"refresh_token"}`: ends the session on that device.
 
 **Errors** always have the same shape:
@@ -349,13 +351,18 @@ from Kavenegar are logged without the API key.
   - Partner links are signed with `SECRET_KEY`, so the database holds nothing usable as a link.
 - **Tokens:**
   - access tokens last 15 minutes;
-  - refresh tokens rotate on every use and can be revoked;
+  - refresh tokens rotate on every use and can be revoked. Each is signed with its session and
+    generation, so reusing an old one ends that session and is written to the audit log;
   - a deactivated account is refused on its next request.
 - **Uploads:** only JPEG, PNG and PDF, recognised from the file's bytes rather than its name, up to
   10 MB. Files are served with `X-Content-Type-Options: nosniff`.
 - **Containers:** the API runs as a non-root user, and the images contain no `.env` file or tests.
 - **Panel:** in the browser, the access token is kept in memory only; the refresh token is in
-  `localStorage`.
+  `localStorage`, shared by the tabs, which renew one at a time and sign out together.
+  - Only the server ending the session signs staff out; a dropped connection or a server error
+    keeps them signed in.
+  - After 15 minutes without activity in any tab the panel signs out, with a one-minute warning
+    first.
 
 ---
 

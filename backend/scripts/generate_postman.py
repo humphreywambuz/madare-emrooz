@@ -91,7 +91,8 @@ def sign_in(prefix: str, mobile_var: str) -> list[dict]:
            body={"refresh_token": f"{{{{{prefix}RefreshToken}}}}"},
            save_vars=[save(f"{prefix}Token", "pm.response.json().access_token"),
                       save(f"{prefix}RefreshToken", "pm.response.json().refresh_token")],
-           doc="The old refresh token stops working."),
+           doc="The old refresh token stops working. Presenting it again later ends the session as "
+               "possibly stolen; a retry within a minute, after a lost answer, still renews."),
         ep("POST", "/api/v1/auth/logout", "Log out", auth=None,
            body={"refresh_token": f"{{{{{prefix}RefreshToken}}}}"}, doc="204; this device's session ends."),
         ep("GET", "/api/v1/me", "Me", doc="The signed-in account: id, mobile, role."),

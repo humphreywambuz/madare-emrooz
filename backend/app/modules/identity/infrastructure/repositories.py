@@ -15,7 +15,7 @@ _OTP_FIELDS = (
 )
 _SESSION_FIELDS = (
     "id", "user_id", "refresh_token_hash", "created_at", "expires_at", "ip_address",
-    "user_agent", "last_seen_at", "revoked_at",
+    "user_agent", "last_seen_at", "revoked_at", "refresh_generation",
 )
 
 
@@ -117,10 +117,17 @@ class SqlAlchemySessionRepository:
     def __init__(self, session: OrmSession):
         self._session = session
 
-    def get_by_refresh_token_hash(self, token_hash: str) -> Session | None:
-        row = self._session.scalar(
-            sa.select(UserSessionModel).where(UserSessionModel.refresh_token_hash == token_hash)
-        )
+    def get(self, session_id: uuid.UUID, *, lock: bool = False) -> Session | None:
+        return self._one(UserSessionModel.id == session_id, lock)
+
+    def get_by_refresh_token_hash(self, token_hash: str, *, lock: bool = False) -> Session | None:
+        return self._one(UserSessionModel.refresh_token_hash == token_hash, lock)
+
+    def _one(self, condition, lock: bool) -> Session | None:
+        query = sa.select(UserSessionModel).where(condition)
+        if lock:
+            query = query.with_for_update().execution_options(populate_existing=True)
+        row = self._session.scalar(query)
         if row is None:
             return None
         values = {f: getattr(row, f) for f in _SESSION_FIELDS}

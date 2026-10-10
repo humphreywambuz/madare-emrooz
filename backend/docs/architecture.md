@@ -179,7 +179,10 @@ Protections:
   once. Requesting a code takes PostgreSQL advisory locks on the number and the network until
   the new code is stored, so simultaneous requests can't all pass the resend limits.
 - **Audit log:** every successful and failed sign-in is written to `audit_logs`.
-- **Refresh tokens** are stored only as a SHA-256 hash and replaced on every use.
+- **Refresh tokens** are stored only as a SHA-256 hash and replaced on every use. Each one is
+  `<session id>.<generation>.<HMAC>` (`identity.domain.secrets`), so a replaced token is still
+  recognised: presenting one ends the session and audits `refresh_token_reused`. The token replaced
+  in the last `REFRESH_TOKEN_REUSE_GRACE_SECONDS` still renews, for a client whose answer was lost.
 
 **SMS.** `SMS_BACKEND` picks the `SmsSender` adapter (`identity/infrastructure/sms.py`):
 

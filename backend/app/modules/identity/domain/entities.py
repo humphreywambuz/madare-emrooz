@@ -49,7 +49,11 @@ class OtpChallenge:
 
 @dataclass
 class Session:
-    """A signed-in device, identified by the hash of its current refresh token."""
+    """A signed-in device, identified by the hash of its current refresh token.
+
+    Each renewal replaces the token and counts up ``refresh_generation``; the token is
+    signed with its generation, so an older one can be told apart from a forged one.
+    """
 
     user_id: uuid.UUID
     refresh_token_hash: str
@@ -59,14 +63,16 @@ class Session:
     user_agent: str | None = None
     last_seen_at: datetime | None = None
     revoked_at: datetime | None = None
+    refresh_generation: int = 0
     id: uuid.UUID = field(default_factory=uuid.uuid4)
 
     def is_active(self, now: datetime) -> bool:
         return self.revoked_at is None and now < self.expires_at
 
     def rotate(self, new_refresh_token_hash: str, now: datetime) -> None:
-        """Replace the refresh token so each one can be used only once."""
+        """Replace the refresh token, made for ``refresh_generation + 1``, so each one is used once."""
         self.refresh_token_hash = new_refresh_token_hash
+        self.refresh_generation += 1
         self.last_seen_at = now
 
     def revoke(self, now: datetime) -> None:

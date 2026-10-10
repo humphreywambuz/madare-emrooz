@@ -21,7 +21,10 @@ export class ApiError extends Error {
 
 export interface Session {
   accessToken(): string | null
-  /** Renew the access token; false if the session is over (the user must sign in again). */
+  /**
+   * Renew the access token; false if the session is over (the user must sign in again).
+   * Throws when the server can't be reached: the request fails, and the session is kept.
+   */
   renew(): Promise<boolean>
   onSignedOut(): void
 }

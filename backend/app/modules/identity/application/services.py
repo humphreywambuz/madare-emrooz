@@ -18,8 +18,9 @@ from app.modules.identity.domain.secrets import (
     hash_otp_code,
     hash_refresh_token,
     new_otp_code,
-    new_refresh_token,
     otp_code_matches,
+    parse_refresh_token,
+    refresh_token_for,
 )
 from app.shared.application.context import RequestContext
 from app.shared.application.unit_of_work import UnitOfWork
@@ -96,6 +97,9 @@ class AuthService:
         secret_key: str,
         access_token_ttl_seconds: int,
         refresh_token_ttl: timedelta,
+        # How long the token just replaced still renews the session: its answer may have been
+        # lost on the way (a dropped connection), and the client then retries with it.
+        refresh_reuse_grace: timedelta = timedelta(seconds=60),
         policy: OtpPolicy = OtpPolicy(),
         now: Callable[[], datetime] = _utcnow,
         generate_code: Callable[[], str] = new_otp_code,
@@ -110,6 +114,7 @@ class AuthService:
         self._secret_key = secret_key
         self._access_ttl = access_token_ttl_seconds
         self._refresh_ttl = refresh_token_ttl
+        self._refresh_reuse_grace = refresh_reuse_grace
         self._policy = policy
         self._now = now
         self._generate_code = generate_code
@@ -243,7 +248,11 @@ class AuthService:
 
     def refresh(self, refresh_token: str, context: RequestContext) -> SignedIn:
         now = self._now()
-        session = self._sessions.get_by_refresh_token_hash(hash_refresh_token(refresh_token or ""))
+        token = refresh_token or ""
+        # Locked until commit, so two renewals of one session run one after the other.
+        session = self._sessions.get_by_refresh_token_hash(hash_refresh_token(token), lock=True)
+        if session is None:
+            session = self._session_of_replaced_token(token, context, now)
         if session is None or not session.is_active(now):
             raise AuthenticationError("Your session has ended. Sign in again.")
         user = self._users.get(session.user_id)
@@ -253,7 +262,7 @@ class AuthService:
             self._uow.commit()
             raise AuthenticationError("This account is no longer active.")
 
-        new_token = new_refresh_token()
+        new_token = refresh_token_for(self._secret_key, session.id, session.refresh_generation + 1)
         session.rotate(hash_refresh_token(new_token), now)
         if context.ip_address:
             session.ip_address = context.ip_address
@@ -283,11 +292,52 @@ class AuthService:
 
     # --- helpers ---------------------------------------------------------------
 
+    def _session_of_replaced_token(
+        self, token: str, context: RequestContext, now: datetime
+    ) -> Session | None:
+        """A genuine token that is no longer current.
+
+        The one replaced moments ago is a retry whose answer was lost, so the session renews.
+        Any other means someone else has held this session's tokens (they may have been
+        stolen): the session ends for everyone, and the event is audited.
+        """
+        parsed = parse_refresh_token(self._secret_key, token)
+        if parsed is None:
+            return None
+        session_id, generation = parsed
+        session = self._sessions.get(session_id, lock=True)
+        if session is None or not session.is_active(now) or generation >= session.refresh_generation:
+            return None
+        just_replaced = (
+            generation == session.refresh_generation - 1
+            and session.last_seen_at is not None
+            and now - session.last_seen_at <= self._refresh_reuse_grace
+        )
+        if just_replaced:
+            return session
+        session.revoke(now)
+        self._sessions.save(session)
+        self._audit.record(
+            AuditEvent(
+                AuditEventType.REFRESH_TOKEN_REUSED,
+                actor_id=session.user_id,
+                resource_type="user_session",
+                resource_id=str(session.id),
+                ip_address=context.ip_address,
+                user_agent=context.user_agent,
+                details={"generation": generation, "current_generation": session.refresh_generation},
+            )
+        )
+        self._uow.commit()
+        return None
+
     def _open_session(
         self, user: User, context: RequestContext, now: datetime, is_new_user: bool
     ) -> SignedIn:
-        token = new_refresh_token()
+        session_id = uuid.uuid4()
+        token = refresh_token_for(self._secret_key, session_id, 0)
         session = Session(
+            id=session_id,
             user_id=user.id,
             refresh_token_hash=hash_refresh_token(token),
             created_at=now,

@@ -5,7 +5,7 @@ from pathlib import Path
 from app.modules.audit.domain.enums import AuditEventType
 
 VERSIONS = Path(__file__).resolve().parents[1] / "migrations" / "versions"
-LATEST_AUDIT_EVENTS_MIGRATION = "32eb077dac4a"
+LATEST_AUDIT_EVENTS_MIGRATION = "398e9e399d54"
 
 
 def load(name: str):
@@ -22,6 +22,6 @@ def test_latest_audit_event_check_lists_every_event_type():
 
 
 def test_each_audit_migration_starts_from_the_previous_list():
-    previous = load("f52a06369cf8")
+    previous = load("32eb077dac4a")
     latest = load(LATEST_AUDIT_EVENTS_MIGRATION)
     assert latest.OLD_AUDIT_EVENTS == previous.NEW_AUDIT_EVENTS

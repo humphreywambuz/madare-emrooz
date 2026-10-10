@@ -81,5 +81,7 @@ class UserSessionModel(UUIDPrimaryKeyMixin, CreatedAtMixin, db.Model):
     last_seen_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
     expires_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
+    # Counts renewals; the refresh token is signed with it (see identity.domain.secrets).
+    refresh_generation: Mapped[int] = mapped_column(sa.Integer, default=0, server_default="0")
 
     user: Mapped[UserModel] = relationship(back_populates="sessions")

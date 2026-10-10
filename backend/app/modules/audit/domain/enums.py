@@ -21,3 +21,5 @@ class AuditEventType(StrEnum):
     PARTNER_LINK_CREATED = "partner_link_created"
     PARTNER_LINK_REVOKED = "partner_link_revoked"
     PARTNER_LINK_VIEWED = "partner_link_viewed"
+    # An already replaced refresh token came back: it may have been stolen, so the session ended.
+    REFRESH_TOKEN_REUSED = "refresh_token_reused"

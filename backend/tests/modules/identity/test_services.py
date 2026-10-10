@@ -68,7 +68,10 @@ class Otps(Repo):
 
 
 class Sessions(Repo):
-    def get_by_refresh_token_hash(self, token_hash):
+    def get(self, session_id, lock=False):
+        return self.items.get(session_id)
+
+    def get_by_refresh_token_hash(self, token_hash, lock=False):
         return next((s for s in self.items.values() if s.refresh_token_hash == token_hash), None)
 
 
@@ -259,8 +262,59 @@ def test_refresh_rotates_the_token(env):
     second = env.service.refresh(first.refresh_token, CTX)
     assert second.refresh_token != first.refresh_token
     assert second.user_id == first.user_id
+    third = env.service.refresh(second.refresh_token, CTX)
+    assert third.refresh_token not in (first.refresh_token, second.refresh_token)
+
+
+def test_retrying_with_the_token_just_replaced_renews_again(env):
+    """The answer to a renewal was lost (the connection dropped): the client retries."""
+    first = sign_in(env)
+    lost = env.service.refresh(first.refresh_token, CTX)
+    env.clock.advance(seconds=30)
+    retried = env.service.refresh(first.refresh_token, CTX)
+    assert retried.refresh_token != lost.refresh_token
+    (session,) = env.sessions.items.values()
+    assert session.revoked_at is None
+    env.clock.advance(minutes=20)
+    assert env.service.refresh(retried.refresh_token, CTX).user_id == first.user_id
+
+
+def test_reusing_an_old_token_ends_the_session(env):
+    """Two parties hold this session's tokens, so one of them stole it: sign both out."""
+    first = sign_in(env)
+    env.clock.advance(minutes=20)
+    current = env.service.refresh(first.refresh_token, CTX)
+    env.clock.advance(minutes=5)
     with pytest.raises(AuthenticationError):
-        env.service.refresh(first.refresh_token, CTX)  # already used
+        env.service.refresh(first.refresh_token, CTX)
+    (session,) = env.sessions.items.values()
+    assert session.revoked_at is not None
+    with pytest.raises(AuthenticationError):
+        env.service.refresh(current.refresh_token, CTX)  # the rightful holder is signed out too
+    (event,) = [e for e in env.audit.events if e.event_type is AuditEventType.REFRESH_TOKEN_REUSED]
+    assert event.actor_id == first.user_id and event.resource_id == str(session.id)
+    assert event.details == {"generation": 0, "current_generation": 1}
+
+
+def test_any_older_generation_counts_as_reuse(env):
+    first = sign_in(env)
+    second = env.service.refresh(first.refresh_token, CTX)
+    env.service.refresh(second.refresh_token, CTX)
+    with pytest.raises(AuthenticationError):
+        env.service.refresh(first.refresh_token, CTX)  # two generations back, even within a minute
+    (session,) = env.sessions.items.values()
+    assert session.revoked_at is not None
+
+
+def test_forged_or_unknown_tokens_change_nothing(env):
+    result = sign_in(env)
+    session_id, generation, _ = result.refresh_token.split(".")
+    for token in ("", "garbage", f"{session_id}.{generation}.forged", f"{session_id}.0.{'A' * 43}"):
+        with pytest.raises(AuthenticationError):
+            env.service.refresh(token, CTX)
+    (session,) = env.sessions.items.values()
+    assert session.revoked_at is None
+    assert not [e for e in env.audit.events if e.event_type is AuditEventType.REFRESH_TOKEN_REUSED]
 
 
 def test_refresh_token_expires(env):

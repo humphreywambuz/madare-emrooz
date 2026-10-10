@@ -98,6 +98,7 @@ def auth_service() -> AuthService:
         secret_key=current_app.config["SECRET_KEY"],
         access_token_ttl_seconds=current_app.config["ACCESS_TOKEN_TTL_SECONDS"],
         refresh_token_ttl=timedelta(days=current_app.config["REFRESH_TOKEN_TTL_DAYS"]),
+        refresh_reuse_grace=timedelta(seconds=current_app.config["REFRESH_TOKEN_REUSE_GRACE_SECONDS"]),
         policy=otp_policy(),
     )
 

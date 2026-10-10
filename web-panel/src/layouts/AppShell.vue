@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
 import AppIcon from '@/components/AppIcon.vue'
 import BrandMark from '@/components/BrandMark.vue'
+import ModalDialog from '@/components/ModalDialog.vue'
 import type { IconName } from '@/components/icons'
 import UserAvatar from '@/components/UserAvatar.vue'
 import { setLocale } from '@/i18n'
 import { useAuth } from '@/stores/auth'
+import { useToasts } from '@/stores/toast'
 import { useFormat } from '@/utils/useFormat'
+import { IDLE_MINUTES, useIdleSignOut } from '@/utils/useIdleSignOut'
 import { useOpenAlerts } from '@/utils/useOpenAlerts'
 import { useTheme } from '@/utils/useTheme'
 
@@ -52,6 +56,13 @@ async function signOut() {
   await auth.signOut()
   router.push({ name: 'login' })
 }
+
+const { t } = useI18n()
+const toasts = useToasts()
+const { warning: idleWarning, secondsLeft, markActive } = useIdleSignOut(async () => {
+  await signOut()
+  toasts.show(t('app.idleSignedOut', { n: num(IDLE_MINUTES) }), 'info', 10_000)
+})
 </script>
 
 <template>
@@ -146,5 +157,13 @@ async function signOut() {
         </div>
       </aside>
     </div>
+
+    <ModalDialog v-model:open="idleWarning" :title="$t('app.idleTitle')">
+      <p class="leading-relaxed text-base-content/70">{{ $t('app.idleText', { n: num(secondsLeft) }) }}</p>
+      <div class="modal-action">
+        <button class="btn btn-ghost" @click="signOut">{{ $t('app.signOut') }}</button>
+        <button class="btn btn-primary" @click="markActive">{{ $t('app.stay') }}</button>
+      </div>
+    </ModalDialog>
   </div>
 </template>

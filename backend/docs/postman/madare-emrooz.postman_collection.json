@@ -125,7 +125,7 @@
                 "refresh"
               ]
             },
-            "description": "The old refresh token stops working.",
+            "description": "The old refresh token stops working. Presenting it again later ends the session as possibly stolen; a retry within a minute, after a lost answer, still renews.",
             "auth": {
               "type": "noauth"
             },
@@ -363,7 +363,7 @@
                 "refresh"
               ]
             },
-            "description": "The old refresh token stops working.",
+            "description": "The old refresh token stops working. Presenting it again later ends the session as possibly stolen; a retry within a minute, after a lost answer, still renews.",
             "auth": {
               "type": "noauth"
             },
